@@ -1,0 +1,72 @@
+{
+  "title": "Enhancer - Pipeline stages",
+  "uid": "enhancer-pipeline",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-15m", "to": "now" },
+  "timezone": "browser",
+  "tags": ["enhancer", "pipeline"],
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Stage latency p95 (seconds)",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(enhance_request_duration_seconds_bucket[1m])) by (le, stage))",
+          "legendFormat": "{{stage}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Outcome breakdown (req/s)",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 10 },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(enhance_requests_total[1m]))",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Loaded model versions",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 10 },
+      "targets": [
+        {
+          "expr": "enhance_model_info",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Quality before vs after (avg)",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 19 },
+      "targets": [
+        {
+          "expr": "sum by (metric) (rate(enhance_quality_before_sum[5m])) / sum by (metric) (rate(enhance_quality_before_count[5m]))",
+          "legendFormat": "before:{{metric}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (metric) (rate(enhance_quality_after_sum[5m])) / sum by (metric) (rate(enhance_quality_after_count[5m]))",
+          "legendFormat": "after:{{metric}}",
+          "refId": "B"
+        }
+      ]
+    }
+  ]
+}

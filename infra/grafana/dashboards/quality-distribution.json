@@ -1,0 +1,226 @@
+{
+  "title": "Enhancer - Quality distribution",
+  "uid": "enhancer-quality",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "tags": ["enhancer", "quality"],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "brightness_mean - Δ avg (after - before, 5m)",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(enhance_quality_after_sum{metric=\"brightness_mean\"}[5m])) / sum(rate(enhance_quality_after_count{metric=\"brightness_mean\"}[5m])) - sum(rate(enhance_quality_before_sum{metric=\"brightness_mean\"}[5m])) / sum(rate(enhance_quality_before_count{metric=\"brightness_mean\"}[5m]))",
+          "legendFormat": "Δ brightness",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 3,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": -0.05 },
+              { "color": "green", "value": 0 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "contrast_std - Δ avg (after - before, 5m)",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(enhance_quality_after_sum{metric=\"contrast_std\"}[5m])) / sum(rate(enhance_quality_after_count{metric=\"contrast_std\"}[5m])) - sum(rate(enhance_quality_before_sum{metric=\"contrast_std\"}[5m])) / sum(rate(enhance_quality_before_count{metric=\"contrast_std\"}[5m]))",
+          "legendFormat": "Δ contrast",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 3,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": -0.05 },
+              { "color": "green", "value": 0 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "saturation_mean - Δ avg (after - before, 5m)",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(enhance_quality_after_sum{metric=\"saturation_mean\"}[5m])) / sum(rate(enhance_quality_after_count{metric=\"saturation_mean\"}[5m])) - sum(rate(enhance_quality_before_sum{metric=\"saturation_mean\"}[5m])) / sum(rate(enhance_quality_before_count{metric=\"saturation_mean\"}[5m]))",
+          "legendFormat": "Δ saturation",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 3,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": -0.05 },
+              { "color": "green", "value": 0 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "heatmap",
+      "title": "brightness_mean - before (heatmap)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "expr": "sum by (le) (increase(enhance_quality_before_bucket{metric=\"brightness_mean\"}[5m]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "yAxis": { "unit": "none", "decimals": 2 },
+        "color": { "scheme": "Oranges", "mode": "scheme" }
+      }
+    },
+    {
+      "id": 11,
+      "type": "heatmap",
+      "title": "brightness_mean - after (heatmap)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        {
+          "expr": "sum by (le) (increase(enhance_quality_after_bucket{metric=\"brightness_mean\"}[5m]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "yAxis": { "unit": "none", "decimals": 2 },
+        "color": { "scheme": "Greens", "mode": "scheme" }
+      }
+    },
+    {
+      "id": 20,
+      "type": "heatmap",
+      "title": "contrast_std - before (heatmap)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        {
+          "expr": "sum by (le) (increase(enhance_quality_before_bucket{metric=\"contrast_std\"}[5m]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "yAxis": { "unit": "none", "decimals": 2 },
+        "color": { "scheme": "Oranges", "mode": "scheme" }
+      }
+    },
+    {
+      "id": 21,
+      "type": "heatmap",
+      "title": "contrast_std - after (heatmap)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        {
+          "expr": "sum by (le) (increase(enhance_quality_after_bucket{metric=\"contrast_std\"}[5m]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "yAxis": { "unit": "none", "decimals": 2 },
+        "color": { "scheme": "Greens", "mode": "scheme" }
+      }
+    },
+    {
+      "id": 30,
+      "type": "heatmap",
+      "title": "saturation_mean - before (heatmap)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "targets": [
+        {
+          "expr": "sum by (le) (increase(enhance_quality_before_bucket{metric=\"saturation_mean\"}[5m]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "yAxis": { "unit": "none", "decimals": 2 },
+        "color": { "scheme": "Oranges", "mode": "scheme" }
+      }
+    },
+    {
+      "id": 31,
+      "type": "heatmap",
+      "title": "saturation_mean - after (heatmap)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "targets": [
+        {
+          "expr": "sum by (le) (increase(enhance_quality_after_bucket{metric=\"saturation_mean\"}[5m]))",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "calculate": false,
+        "yAxis": { "unit": "none", "decimals": 2 },
+        "color": { "scheme": "Greens", "mode": "scheme" }
+      }
+    },
+    {
+      "id": 40,
+      "type": "timeseries",
+      "title": "Avg quality before vs after (5m moving)",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 28 },
+      "targets": [
+        {
+          "expr": "sum by (metric) (rate(enhance_quality_before_sum[5m])) / sum by (metric) (rate(enhance_quality_before_count[5m]))",
+          "legendFormat": "before:{{metric}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (metric) (rate(enhance_quality_after_sum[5m])) / sum by (metric) (rate(enhance_quality_after_count[5m]))",
+          "legendFormat": "after:{{metric}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 3 } }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+[Unit]
+Description=Image Enhancement docker compose stack
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Подставь актуальные пути под свой хост; рекомендуется не запускать от root.
+WorkingDirectory=/home/dmitriy/Image_Enhancement
+ExecStart=/home/dmitriy/Image_Enhancement/infra/deploy/up.sh
+ExecStop=/home/dmitriy/Image_Enhancement/infra/deploy/down.sh
+TimeoutStartSec=180
+
+[Install]
+WantedBy=multi-user.target
