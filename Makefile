@@ -8,7 +8,7 @@ MYPY := $(VENV)/bin/mypy
 
 WEIGHTS_DIR := .volumes/weights
 SAFMN_WEIGHTS := $(WEIGHTS_DIR)/Real_SAFMNpp_x4.pth
-SAFMN_WEIGHTS_URL := https://huggingface.co/Meloo/SAFMN/resolve/main/Real_SAFMNpp_x4.pth
+SAFMN_WEIGHTS_URL := https://huggingface.co/Meloo/SAFMN/resolve/main/SAFMN_L_Real_LSDIR_x4.pth?download=true
 
 .DEFAULT_GOAL := help
 
