@@ -33,7 +33,7 @@ class SAFMNEnhancer:
         self._device = torch.device(device)
         self._use_fp16 = use_fp16 and self._device.type == "cuda"
         self._model = SAFMN(dim=128, n_blocks=16, ffn_scale=2.0, upscaling_factor=scale)
-        checkpoint = torch.load(weights_path, map_location="cpu", weights_only=True)
+        checkpoint = torch.load(weights_path, map_location="cpu", weights_only=False)
         state_dict = (
             checkpoint.get("params", checkpoint) if isinstance(checkpoint, dict) else checkpoint
         )

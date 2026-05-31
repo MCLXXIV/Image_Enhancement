@@ -65,7 +65,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
 
 
 def _load_init_weights(model: torch.nn.Module, path: Path, log: structlog.BoundLogger) -> None:
-    checkpoint = torch.load(path, map_location="cpu", weights_only=True)
+    checkpoint = torch.load(path, map_location="cpu", weights_only=False)
     state_dict = checkpoint.get("params", checkpoint) if isinstance(checkpoint, dict) else checkpoint
     model.load_state_dict(state_dict, strict=True)
     log.info("model.weights_loaded", path=str(path))

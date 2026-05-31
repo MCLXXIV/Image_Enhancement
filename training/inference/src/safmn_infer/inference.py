@@ -14,7 +14,7 @@ from safmn_infer.arch import SAFMN
 def load_model(weights_path: Path, scale: int, device: torch.device) -> SAFMN:
     """Конфигурация совпадает с upstream-инференсом Real_SAFMN++ (dim=128, n_blocks=16)."""
     model = SAFMN(dim=128, n_blocks=16, ffn_scale=2.0, upscaling_factor=scale)
-    checkpoint = torch.load(weights_path, map_location="cpu", weights_only=True)
+    checkpoint = torch.load(weights_path, map_location="cpu", weights_only=False)
     state_dict = checkpoint.get("params", checkpoint) if isinstance(checkpoint, dict) else checkpoint
     model.load_state_dict(state_dict, strict=True)
     model.to(device).eval()
