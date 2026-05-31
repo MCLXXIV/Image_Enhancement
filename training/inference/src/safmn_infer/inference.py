@@ -31,7 +31,7 @@ def _img_to_tensor(img_bgr_uint8: np.ndarray, device: torch.device) -> torch.Ten
 
 
 def _tensor_to_img(tensor: torch.Tensor) -> np.ndarray:
-    out = tensor.squeeze(0).clamp_(0, 1).cpu().numpy()
+    out = tensor.squeeze(0).clamp(0, 1).cpu().numpy()
     out = np.transpose(out, (1, 2, 0))[:, :, ::-1]
     return (out * 255.0).round().astype(np.uint8)
 

@@ -49,7 +49,7 @@ class SAFMNEnhancer:
         return torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0).to(self._device)
 
     def _from_tensor(self, tensor: torch.Tensor) -> np.ndarray:
-        out = tensor.squeeze(0).clamp_(0, 1).cpu().numpy()
+        out = tensor.squeeze(0).clamp(0, 1).cpu().numpy()
         out = np.transpose(out, (1, 2, 0))[:, :, ::-1]
         return (out * 255.0).round().astype(np.uint8)
 
