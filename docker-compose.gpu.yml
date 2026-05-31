@@ -1,0 +1,20 @@
+name: image-enhancement
+
+services:
+  enhancer:
+    build:
+      context: ./services/enhancer
+      dockerfile: Dockerfile.gpu
+    image: image-enhancement/enhancer:gpu
+    environment:
+      SAFMN_DEVICE: cuda
+      SAFMN_FP16: "true"
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

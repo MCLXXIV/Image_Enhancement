@@ -12,7 +12,9 @@ SAFMN_WEIGHTS_URL := https://huggingface.co/Meloo/SAFMN/resolve/main/Real_SAFMNp
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install test lint fmt full-check up up-infra down logs clean weights demo enhance-curl
+.PHONY: help install test lint fmt full-check up up-infra up-gpu down down-gpu logs logs-gpu clean weights demo enhance-curl
+
+GPU_COMPOSE := docker compose -f docker-compose.yml -f docker-compose.gpu.yml
 
 help:
 	@echo "Image Enhancement - Makefile"
@@ -28,10 +30,13 @@ help:
 	@echo "  weights      скачать Real_SAFMN++ x4 в $(SAFMN_WEIGHTS)"
 	@echo ""
 	@echo "Стек (docker compose):"
-	@echo "  up           docker compose up -d --build (весь стек)"
+	@echo "  up           docker compose up -d --build (весь стек, CPU torch)"
 	@echo "  up-infra     то же, но без enhancer/demo (если разрабатываешь сервис локально)"
+	@echo "  up-gpu       стек с CUDA torch + nvidia runtime (для хоста с RTX)"
 	@echo "  down         docker compose down"
+	@echo "  down-gpu     то же для GPU-стека"
 	@echo "  logs         docker compose logs -f enhancer"
+	@echo "  logs-gpu     то же для GPU-стека"
 	@echo "  demo         открыть Streamlit: http://localhost:8501"
 	@echo "  enhance-curl smoke-тест POST /enhance из shell"
 	@echo ""
@@ -74,11 +79,20 @@ up:
 up-infra:
 	docker compose up -d minio postgres mlflow prometheus grafana
 
+up-gpu:
+	$(GPU_COMPOSE) up -d --build
+
 down:
 	docker compose down
 
+down-gpu:
+	$(GPU_COMPOSE) down
+
 logs:
 	docker compose logs -f enhancer
+
+logs-gpu:
+	$(GPU_COMPOSE) logs -f enhancer
 
 demo:
 	@echo "Streamlit: http://localhost:8501"
