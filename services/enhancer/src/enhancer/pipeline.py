@@ -57,6 +57,8 @@ def _override_stages(
     decision: RouteDecision, params: EnhanceParams, available_stages: set[Stage]
 ) -> list[Stage]:
     """Если пользователь руками задал параметр стадии в params, принудительно её включает."""
+    if params.safmn_only:
+        return [Stage.SAFMN] if Stage.SAFMN in available_stages else []
     stages = list(decision.stages)
     if params.gamma is not None and Stage.GAMMA not in stages:
         stages.append(Stage.GAMMA)
@@ -98,7 +100,7 @@ class Pipeline:
         with enhance_request_duration_seconds.labels(stage="route").time():
             decision = route(metrics_before, width=w, height=h, available_stages=available)
 
-        force = bool(params.force)
+        force = bool(params.force) or bool(params.safmn_only)
         stages_to_apply = _override_stages(decision, params, available)
         if decision.skip and not force and not stages_to_apply:
             metrics_after = metrics_before

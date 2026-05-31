@@ -16,14 +16,23 @@ st.caption(
 )
 
 with st.sidebar:
-    st.header("White-box параметры")
-    use_white_box = st.checkbox("Передавать параметры вручную", value=False)
-    force = st.checkbox("force (применить даже если 'хорошее')", value=False)
-    use_safmn = st.checkbox("Форсировать SAFMN (Super Resolution)", value=False)
-    gamma = st.slider("gamma (<1 светлее, >1 темнее)", 0.5, 2.0, 1.0, 0.05)
-    clahe_clip = st.slider("CLAHE clip", 1.0, 6.0, 2.0, 0.5)
-    sharp_amount = st.slider("Unsharp amount", 0.0, 2.0, 0.0, 0.1)
-    denoise_strength = st.slider("Denoise strength", 0.0, 1.0, 0.0, 0.05)
+    st.header("Режим")
+    safmn_only = st.checkbox(
+        "Только SAFMN (raw модель, без эвристик и fallback)", value=False
+    )
+    st.divider()
+    st.header("White-box параметры (CV-стадии)")
+    use_white_box = st.checkbox("Передавать параметры вручную", value=False, disabled=safmn_only)
+    force = st.checkbox(
+        "force (применить даже если 'хорошее')", value=False, disabled=safmn_only
+    )
+    use_safmn = st.checkbox(
+        "Форсировать SAFMN", value=False, disabled=safmn_only
+    )
+    gamma = st.slider("gamma (<1 светлее, >1 темнее)", 0.5, 2.0, 1.0, 0.05, disabled=safmn_only)
+    clahe_clip = st.slider("CLAHE clip", 1.0, 6.0, 2.0, 0.5, disabled=safmn_only)
+    sharp_amount = st.slider("Unsharp amount", 0.0, 2.0, 0.0, 0.1, disabled=safmn_only)
+    denoise_strength = st.slider("Denoise strength", 0.0, 1.0, 0.0, 0.05, disabled=safmn_only)
 
 uploaded = st.file_uploader("Загрузите фото (JPEG/PNG)", type=["jpg", "jpeg", "png"])
 
@@ -34,7 +43,9 @@ if uploaded is None:
 raw = uploaded.read()
 
 params: dict[str, float | bool] = {}
-if use_white_box:
+if safmn_only:
+    params["safmn_only"] = True
+elif use_white_box:
     if force:
         params["force"] = True
     if use_safmn:

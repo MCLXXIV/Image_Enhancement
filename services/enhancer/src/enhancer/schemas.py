@@ -8,6 +8,7 @@ class EnhanceParams(BaseModel):
     sharp_amount: float | None = Field(default=None, ge=0.0, le=2.0)
     denoise_strength: float | None = Field(default=None, ge=0.0, le=1.0)
     use_safmn: bool | None = None
+    safmn_only: bool | None = None
 
 
 class HealthResponse(BaseModel):
