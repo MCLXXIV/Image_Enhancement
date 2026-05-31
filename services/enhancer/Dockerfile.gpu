@@ -14,10 +14,9 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY src ./src
 
-# CUDA 12.4 wheel. На RTX 50-series Blackwell (sm_120) при ошибке "no kernel image"
-# заменить index-url на cu126 или поставить torch nightly из cu128.
+# CUDA 12.8 wheel для Blackwell (sm_120, RTX 50-series). cu124/126 не поддерживают sm_120.
 RUN pip install --upgrade pip \
-    && pip install torch --index-url https://download.pytorch.org/whl/cu124 \
+    && pip install torch --index-url https://download.pytorch.org/whl/cu128 \
     && pip install .
 
 EXPOSE 8000
