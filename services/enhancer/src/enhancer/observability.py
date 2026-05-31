@@ -63,3 +63,15 @@ enhance_model_info = Gauge(
     "Currently loaded stage model versions (constant=1, version in label)",
     labelnames=("stage", "version"),
 )
+
+enhance_psnr_vs_input = Histogram(
+    "enhance_psnr_vs_input",
+    "PSNR (dB) between input and enhanced output; SR output downscaled to input size first",
+    buckets=(10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 50.0, 100.0),
+)
+
+enhance_scale_factor = Histogram(
+    "enhance_scale_factor",
+    "Output / input width ratio (>1 for SR stages)",
+    buckets=(1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0),
+)

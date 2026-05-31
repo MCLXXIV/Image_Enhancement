@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 
+import cv2
 import numpy as np
 
 from enhancer.models.base import Enhancer, StageParams
@@ -26,6 +27,8 @@ class EnhanceResult:
     model_versions: dict[str, str]
     stage_latency_ms: dict[str, float] = field(default_factory=dict)
     total_latency_ms: float = 0.0
+    psnr_vs_input: float = 0.0
+    scale_factor: float = 1.0
 
 
 def _stage_params(p: EnhanceParams) -> StageParams:
@@ -50,7 +53,9 @@ def _is_regression(before: QualityMetrics, after: QualityMetrics) -> bool:
     return bool(before.contrast_std > 0 and after.contrast_std / before.contrast_std < 0.70)
 
 
-def _override_stages(decision: RouteDecision, params: EnhanceParams) -> list[Stage]:
+def _override_stages(
+    decision: RouteDecision, params: EnhanceParams, available_stages: set[Stage]
+) -> list[Stage]:
     """Если пользователь руками задал параметр стадии в params, принудительно её включает."""
     stages = list(decision.stages)
     if params.gamma is not None and Stage.GAMMA not in stages:
@@ -61,7 +66,20 @@ def _override_stages(decision: RouteDecision, params: EnhanceParams) -> list[Sta
         stages.append(Stage.UNSHARP)
     if params.denoise_strength is not None and Stage.DENOISE not in stages:
         stages.append(Stage.DENOISE)
-    return stages
+    if params.use_safmn and Stage.SAFMN in available_stages and Stage.SAFMN not in stages:
+        stages.append(Stage.SAFMN)
+    return [s for s in stages if s in available_stages]
+
+
+def _psnr_vs_input(original: np.ndarray, current: np.ndarray) -> float:
+    """PSNR между оригиналом и результатом; SR-выход даунскейлится до размера оригинала."""
+    if current.shape[:2] != original.shape[:2]:
+        h, w = original.shape[:2]
+        current = cv2.resize(current, (w, h), interpolation=cv2.INTER_AREA)
+    psnr: float = cv2.PSNR(original, current)
+    if psnr == float("inf") or psnr != psnr:  # noqa: PLR0124
+        return 100.0
+    return psnr
 
 
 class Pipeline:
@@ -71,15 +89,17 @@ class Pipeline:
     def run(self, image_bgr: np.ndarray, params: EnhanceParams | None = None) -> EnhanceResult:
         params = params or EnhanceParams()
         total_t0 = time.perf_counter()
+        available = set(self.stages.keys())
+        h, w = image_bgr.shape[:2]
 
         with enhance_request_duration_seconds.labels(stage="assess").time():
             metrics_before = compute_metrics(image_bgr)
 
         with enhance_request_duration_seconds.labels(stage="route").time():
-            decision = route(metrics_before)
+            decision = route(metrics_before, width=w, height=h, available_stages=available)
 
         force = bool(params.force)
-        stages_to_apply = _override_stages(decision, params)
+        stages_to_apply = _override_stages(decision, params, available)
         if decision.skip and not force and not stages_to_apply:
             metrics_after = metrics_before
             total_ms = (time.perf_counter() - total_t0) * 1000
@@ -94,6 +114,8 @@ class Pipeline:
                 metrics_after=metrics_after,
                 model_versions=self._versions([]),
                 total_latency_ms=total_ms,
+                psnr_vs_input=100.0,
+                scale_factor=1.0,
             )
 
         stage_latency: dict[str, float] = {}
@@ -108,6 +130,7 @@ class Pipeline:
 
         with enhance_request_duration_seconds.labels(stage="verify").time():
             metrics_after = compute_metrics(current)
+            psnr_input = _psnr_vs_input(image_bgr, current)
 
         fallback = False
         if not force and _is_regression(metrics_before, metrics_after):
@@ -121,12 +144,14 @@ class Pipeline:
             )
             current = image_bgr
             metrics_after = metrics_before
+            psnr_input = 100.0
             fallback = True
 
         total_ms = (time.perf_counter() - total_t0) * 1000
         enhance_request_duration_seconds.labels(stage="total").observe(total_ms / 1000)
         outcome = "fallback" if fallback else "enhanced"
         enhance_requests_total.labels(outcome=outcome).inc()
+        scale_factor = current.shape[1] / image_bgr.shape[1]
 
         return EnhanceResult(
             image=current,
@@ -138,6 +163,8 @@ class Pipeline:
             model_versions=self._versions(stages_to_apply),
             stage_latency_ms=stage_latency,
             total_latency_ms=total_ms,
+            psnr_vs_input=psnr_input,
+            scale_factor=scale_factor,
         )
 
     def _versions(self, applied: list[Stage]) -> dict[str, str]:

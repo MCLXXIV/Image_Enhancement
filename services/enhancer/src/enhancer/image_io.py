@@ -8,7 +8,12 @@ import cv2
 import numpy as np
 from fastapi import HTTPException
 
-from enhancer.observability import enhance_quality_after, enhance_quality_before
+from enhancer.observability import (
+    enhance_psnr_vs_input,
+    enhance_quality_after,
+    enhance_quality_before,
+    enhance_scale_factor,
+)
 from enhancer.pipeline import EnhanceResult
 
 _QUALITY_METRICS_FOR_HISTOGRAM: tuple[str, ...] = (
@@ -41,6 +46,8 @@ def build_headers(result: EnhanceResult) -> dict[str, str]:
         "X-Enhance-Skipped": "true" if result.skipped else "false",
         "X-Enhance-Fallback": "true" if result.fallback else "false",
         "X-Enhance-Latency-Ms": f"{result.total_latency_ms:.1f}",
+        "X-Enhance-Psnr-Vs-Input": f"{result.psnr_vs_input:.2f}",
+        "X-Enhance-Scale-Factor": f"{result.scale_factor:.2f}",
         "X-Enhance-Quality-Before": result.metrics_before.model_dump_json(),
         "X-Enhance-Quality-After": result.metrics_after.model_dump_json(),
         "X-Enhance-Model-Versions": json.dumps(result.model_versions),
@@ -53,3 +60,6 @@ def observe_quality(result: EnhanceResult) -> None:
     for metric_name in _QUALITY_METRICS_FOR_HISTOGRAM:
         enhance_quality_before.labels(metric=metric_name).observe(before[metric_name])
         enhance_quality_after.labels(metric=metric_name).observe(after[metric_name])
+    if not result.skipped:
+        enhance_psnr_vs_input.observe(result.psnr_vs_input)
+        enhance_scale_factor.observe(result.scale_factor)

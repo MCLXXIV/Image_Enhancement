@@ -16,6 +16,7 @@ class Tag(StrEnum):
     NOISY = "noisy"
     BLURRY = "blurry"
     COLOR_CAST = "color_cast"
+    LOW_RES = "low_res"
 
 
 class Stage(StrEnum):
@@ -24,6 +25,7 @@ class Stage(StrEnum):
     WHITE_BALANCE = "white_balance"
     UNSHARP = "unsharp"
     DENOISE = "denoise"
+    SAFMN = "safmn"
 
 
 class RouteDecision(BaseModel):
@@ -39,11 +41,19 @@ SHARPNESS_LOW = 60.0
 UNDEREXPOSED_LOW = 0.20
 OVEREXPOSED_HIGH = 0.10
 CHANNEL_IMBALANCE_HIGH = 0.12
+LOW_RES_MAX_SIDE = 1280
 
 
-def route(m: QualityMetrics) -> RouteDecision:
+def route(
+    m: QualityMetrics,
+    width: int | None = None,
+    height: int | None = None,
+    available_stages: set[Stage] | None = None,
+) -> RouteDecision:
+    """Маршрутизатор стадий; SAFMN включается при BLURRY/LOW_RES если зарегистрирован, иначе UNSHARP."""
     tags: list[Tag] = []
     stages: list[Stage] = []
+    safmn_available = available_stages is not None and Stage.SAFMN in available_stages
 
     if m.brightness_mean < BRIGHTNESS_LOW or m.underexposed_ratio > UNDEREXPOSED_LOW:
         tags.append(Tag.LOW_LIGHT)
@@ -63,9 +73,20 @@ def route(m: QualityMetrics) -> RouteDecision:
         tags.append(Tag.COLOR_CAST)
         stages.append(Stage.WHITE_BALANCE)
 
-    if m.sharpness_laplacian_var < SHARPNESS_LOW:
+    is_blurry = m.sharpness_laplacian_var < SHARPNESS_LOW
+    is_low_res = (
+        safmn_available
+        and width is not None
+        and height is not None
+        and max(width, height) < LOW_RES_MAX_SIDE
+    )
+    if is_blurry:
         tags.append(Tag.BLURRY)
-        stages.append(Stage.UNSHARP)
+        stages.append(Stage.SAFMN if safmn_available else Stage.UNSHARP)
+    if is_low_res:
+        tags.append(Tag.LOW_RES)
+        if Stage.SAFMN not in stages:
+            stages.append(Stage.SAFMN)
 
     skip = len(stages) == 0
     return RouteDecision(tags=tags, stages=stages, skip=skip)

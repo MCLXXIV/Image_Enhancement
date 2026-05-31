@@ -1,29 +1,30 @@
 [project]
-name = "enhancer"
+name = "sr-eval"
 version = "0.1.0"
-description = "Image enhancement microservice for Avito real estate photos"
+description = "Full-reference quality eval (PSNR/SSIM/LPIPS) for SR/enhancement outputs"
 requires-python = ">=3.11"
 dependencies = [
-  "fastapi>=0.115",
-  "uvicorn[standard]>=0.32",
-  "pydantic>=2.9",
-  "pydantic-settings>=2.6",
-  "python-multipart>=0.0.12",
-  "structlog>=24.4",
-  "prometheus-client>=0.21",
   "numpy>=2.1",
   "opencv-python-headless>=4.10",
-  "pillow>=11.0",
-  "torch>=2.4",
+  "scikit-image>=0.24",
+  "pandas>=2.2",
+  "tqdm>=4.66",
+  "structlog>=24.4",
 ]
 
 [project.optional-dependencies]
+lpips = [
+  "torch>=2.4",
+  "lpips>=0.1.4",
+]
 dev = [
   "pytest>=8.3",
-  "httpx>=0.27",
   "ruff>=0.8",
   "mypy>=1.13",
 ]
+
+[project.scripts]
+sr-eval = "sr_eval.main:main"
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -42,9 +43,9 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-packages = ["enhancer"]
+packages = ["sr_eval"]
 mypy_path = "src"
 
 [[tool.mypy.overrides]]
-module = ["cv2.*"]
+module = ["cv2.*", "lpips.*", "skimage.*", "tqdm.*"]
 ignore_missing_imports = true

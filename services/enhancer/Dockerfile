@@ -13,7 +13,11 @@ WORKDIR /app
 
 COPY pyproject.toml ./
 COPY src ./src
-RUN pip install --upgrade pip && pip install .
+
+# CPU-only torch (~200 МБ vs ~2 ГБ CUDA wheel). На GPU-хосте переопределяется.
+RUN pip install --upgrade pip \
+    && pip install torch --index-url https://download.pytorch.org/whl/cpu \
+    && pip install .
 
 EXPOSE 8000
 

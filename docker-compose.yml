@@ -15,6 +15,13 @@ services:
       S3_ENDPOINT_URL: http://minio:9000
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      SAFMN_WEIGHTS_PATH: ${SAFMN_WEIGHTS_PATH:-/weights/Real_SAFMNpp_x4.pth}
+      SAFMN_SCALE: ${SAFMN_SCALE:-4}
+      SAFMN_TILE: ${SAFMN_TILE:-256}
+      SAFMN_DEVICE: ${SAFMN_DEVICE:-cpu}
+      SAFMN_FP16: ${SAFMN_FP16:-false}
+    volumes:
+      - ./.volumes/weights:/weights:ro
     ports:
       - "8000:8000"
     depends_on:

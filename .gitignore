@@ -210,7 +210,13 @@ __marimo__/
 .volumes/
 .env.prod
 
+# macOS Finder metadata
+.DS_Store
+**/.DS_Store
+
 *.md
 !README.md
 !**/README.md
+training/README.md
+training/**/README.md
 
