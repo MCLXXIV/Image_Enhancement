@@ -12,7 +12,7 @@ SAFMN_WEIGHTS_URL := https://huggingface.co/Meloo/SAFMN/resolve/main/SAFMN_L_Rea
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install test lint fmt full-check up up-infra up-gpu down down-gpu logs logs-gpu clean weights demo enhance-curl
+.PHONY: help install test lint fmt full-check up up-infra up-gpu down down-gpu logs logs-gpu clean weights demo enhance-curl load-test
 
 GPU_COMPOSE := docker compose -f docker-compose.yml -f docker-compose.gpu.yml
 
@@ -39,6 +39,7 @@ help:
 	@echo "  logs-gpu     то же для GPU-стека"
 	@echo "  demo         открыть Streamlit: http://localhost:8501"
 	@echo "  enhance-curl smoke-тест POST /enhance из shell"
+	@echo "  load-test    нагрузочный тест (TOTAL=50 CONCURRENCY=4 IMAGE=test.jpeg)"
 	@echo ""
 	@echo "  clean        вычистить __pycache__, .venv, .egg-info"
 
@@ -108,6 +109,17 @@ enhance-curl:
 		http://localhost:8000/enhance
 	@grep -i '^x-enhance' /tmp/enhanced.headers
 	@echo "результат: /tmp/enhanced.jpg"
+
+TOTAL ?= 50
+CONCURRENCY ?= 4
+IMAGE ?= test.jpeg
+URL ?= http://localhost:8000/enhance
+
+load-test:
+	$(PYTHON) scripts/load_test.py \
+		--url $(URL) --image $(IMAGE) \
+		--total $(TOTAL) --concurrency $(CONCURRENCY) \
+		$(if $(PARAMS),--params '$(PARAMS)',)
 
 clean:
 	find . -path ./.git -prune -o -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
