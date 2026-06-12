@@ -40,6 +40,14 @@ def test_dark_with_highlights_routes_to_lowlight_not_exposure(dark_image: np.nda
     assert Stage.EXPOSURE not in decision.stages
 
 
+def test_large_dark_routes_to_lowlight_then_restore(dark_image: np.ndarray) -> None:
+    big = cv2.resize(dark_image, (1400, 1400), interpolation=cv2.INTER_NEAREST)
+    decision = route(compute_metrics(big), 1400, 1400, ALL_STAGES)
+    assert decision.stages[0] == Stage.LOW_LIGHT
+    assert Stage.RESTORE in decision.stages  # шум от осветления чистит SCUNet
+    assert Stage.SAFMN not in decision.stages  # крупное фото не апскейлим
+
+
 def test_large_blurry_routes_to_restore_not_safmn(blurry_image: np.ndarray) -> None:
     big = cv2.resize(blurry_image, (1400, 1400))
     decision = route(compute_metrics(big), 1400, 1400, ALL_STAGES)

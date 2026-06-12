@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     lowlight_num_blocks: str = Field(default="1,2,2", alias="LOWLIGHT_NUM_BLOCKS")
     # Доля выхода модели в результате: 1.0 только модель, <1.0 подмешивает оригинал.
     lowlight_strength: float = Field(default=0.8, alias="LOWLIGHT_STRENGTH")
+    # Шумо-адаптивная сила: на шумных кадрах не выкручиваем осветление (шум добивает restore).
+    # noise_sigma входа <= lo держит базовую силу, >= hi опускает её до strength_min.
+    lowlight_noise_lo: float = Field(default=2.0, alias="LOWLIGHT_NOISE_LO")
+    lowlight_noise_hi: float = Field(default=8.0, alias="LOWLIGHT_NOISE_HI")
+    lowlight_strength_min: float = Field(default=0.5, alias="LOWLIGHT_STRENGTH_MIN")
 
     # --- IAT (exposure) ---
     exposure_weights_path: str | None = Field(default=None, alias="EXPOSURE_WEIGHTS_PATH")

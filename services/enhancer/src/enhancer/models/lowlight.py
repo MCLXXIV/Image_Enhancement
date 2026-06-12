@@ -12,10 +12,97 @@ import torch.nn.functional as F  # noqa: N812
 
 from enhancer.models._retinexformer_arch import RetinexFormer
 from enhancer.models.base import StageParams
+from enhancer.quality.metrics import estimate_noise_sigma
 
 HIGHLIGHT_LO = 0.5
 HIGHLIGHT_HI = 0.9
 CHROMA_HEADROOM = 12.0
+
+# HDR-сцена: яркие источники (лампы, вывески) на тёмном фоне. На ней защитную маску
+# расширяем вниз (HIGHLIGHT_LO_HDR), иначе Retinexformer раздувает ореол вокруг источника.
+HIGHLIGHT_LO_HDR = 0.35
+HDR_BRIGHT_RATIO = 0.002
+HDR_MEAN_MAX = 0.4
+
+
+def _is_hdr_scene(image_bgr: np.ndarray) -> bool:
+    """Тёмный кадр с точечными засветами: средняя яркость низкая, но есть выгоревшие пиксели."""
+    lum = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255.0
+    bright_ratio = float((lum > HIGHLIGHT_HI).mean())
+    return bright_ratio > HDR_BRIGHT_RATIO and float(lum.mean()) < HDR_MEAN_MAX
+
+
+WELL_EXP_SIGMA = 0.2
+FUSION_LEVELS = 6
+
+
+def well_exposedness(image_f: np.ndarray, sigma: float = WELL_EXP_SIGMA) -> np.ndarray:
+    """Вес пикселя по близости к середине тонов: пере-/недосвеченные зоны получают низкий вес."""
+    e = np.exp(-((image_f - 0.5) ** 2) / (2.0 * sigma * sigma))
+    return e.prod(axis=2).astype(np.float32)
+
+
+def _gaussian_pyramid(img: np.ndarray, levels: int) -> list[np.ndarray]:
+    pyr = [img]
+    cur = img
+    for _ in range(1, levels):
+        cur = cv2.pyrDown(cur)
+        pyr.append(cur)
+    return pyr
+
+
+def _laplacian_pyramid(img: np.ndarray, levels: int) -> list[np.ndarray]:
+    gp = _gaussian_pyramid(img, levels)
+    lp: list[np.ndarray] = []
+    for i in range(levels - 1):
+        up = cv2.pyrUp(gp[i + 1], dstsize=(gp[i].shape[1], gp[i].shape[0]))
+        lp.append(gp[i] - up)
+    lp.append(gp[-1])
+    return lp
+
+
+def exposure_fusion(images: list[np.ndarray], weights: list[np.ndarray], levels: int) -> np.ndarray:
+    """Сливает N экспозиций (BGR float [0,1]) по весам через лапласовы пирамиды (без гало)."""
+    wsum = np.zeros_like(weights[0])
+    for w in weights:
+        wsum = wsum + w
+    wsum = wsum + 1e-12
+
+    blended: list[np.ndarray] | None = None
+    for img, w in zip(images, weights, strict=True):
+        gw = _gaussian_pyramid((w / wsum).astype(np.float32), levels)
+        lp = _laplacian_pyramid(img, levels)
+        contrib = [lp[level] * gw[level][:, :, None] for level in range(levels)]
+        blended = (
+            contrib
+            if blended is None
+            else [blended[level] + contrib[level] for level in range(levels)]
+        )
+
+    assert blended is not None
+    out = blended[-1]
+    for level in range(levels - 2, -1, -1):
+        out = cv2.pyrUp(out, dstsize=(blended[level].shape[1], blended[level].shape[0]))
+        out = out + blended[level]
+    return out
+
+
+def fuse_exposures(original_bgr: np.ndarray, enhanced_bgr: np.ndarray) -> np.ndarray:
+    """Тон-компрессия HDR-сцены: вернуть оригинальные света, сохранив вытянутые осветлением тени."""
+    orig = original_bgr.astype(np.float32) / 255.0
+    enh = enhanced_bgr.astype(np.float32) / 255.0
+    h, w = orig.shape[:2]
+    levels = max(1, min(FUSION_LEVELS, int(np.log2(max(2, min(h, w))))))
+    fused = exposure_fusion([orig, enh], [well_exposedness(orig), well_exposedness(enh)], levels)
+    return (fused * 255.0).clip(0, 255).round().astype(np.uint8)
+
+
+def adaptive_strength(base: float, noise_sigma: float, lo: float, hi: float, smin: float) -> float:
+    """Чем шумнее вход, тем ближе сила к smin: меньше осветления, меньше вытянутого шума."""
+    if hi <= lo:
+        return base
+    t = float(np.clip((noise_sigma - lo) / (hi - lo), 0.0, 1.0))
+    return base + (smin - base) * t
 
 
 def protect_highlights(
@@ -70,11 +157,17 @@ class LowLightEnhancer:
         stage: int = 1,
         num_blocks: Sequence[int] = (1, 2, 2),
         strength: float = 1.0,
+        noise_lo: float = 2.0,
+        noise_hi: float = 8.0,
+        strength_min: float = 0.5,
     ) -> None:
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
         self._device = torch.device(device)
         self._strength = float(np.clip(strength, 0.0, 1.0))
+        self._noise_lo = float(noise_lo)
+        self._noise_hi = float(noise_hi)
+        self._strength_min = float(np.clip(strength_min, 0.0, 1.0))
         self._level = 2
         self._model = RetinexFormer(
             in_channels=3, out_channels=3, n_feat=n_feat, stage=stage, num_blocks=list(num_blocks)
@@ -111,5 +204,16 @@ class LowLightEnhancer:
         out = self._model(tensor)
         out = out[:, :, :h, :w]
         enhanced = self._from_tensor(out)
-        protected = protect_highlights(image_bgr, enhanced, HIGHLIGHT_LO, HIGHLIGHT_HI)
-        return blend_strength(image_bgr, protected, self._strength)
+
+        gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+        is_hdr = _is_hdr_scene(image_bgr)
+        lo = HIGHLIGHT_LO_HDR if is_hdr else HIGHLIGHT_LO
+        protected = protect_highlights(image_bgr, enhanced, lo, HIGHLIGHT_HI)
+        if is_hdr:
+            protected = fuse_exposures(image_bgr, protected)
+
+        noise = estimate_noise_sigma(gray)
+        strength = adaptive_strength(
+            self._strength, noise, self._noise_lo, self._noise_hi, self._strength_min
+        )
+        return blend_strength(image_bgr, protected, strength)

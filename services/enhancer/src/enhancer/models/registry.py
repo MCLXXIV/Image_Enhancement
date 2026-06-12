@@ -66,6 +66,9 @@ def _try_build_lowlight() -> Enhancer | None:
             stage=settings.lowlight_stage,
             num_blocks=num_blocks,
             strength=settings.lowlight_strength,
+            noise_lo=settings.lowlight_noise_lo,
+            noise_hi=settings.lowlight_noise_hi,
+            strength_min=settings.lowlight_strength_min,
         )
         log.info("lowlight.loaded", weights=str(weights))
         return stage

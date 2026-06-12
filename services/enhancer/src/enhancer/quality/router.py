@@ -81,9 +81,12 @@ def route(
     if is_low_res:
         tags.append(Tag.LOW_RES)
 
+    # Тёмный кадр после осветления (low_light) всегда поднимает шум из теней, его чистит SCUNet.
+    # SAFMN на мелких кадрах денойзит сам, поэтому restore нужен только крупным тёмным/размытым.
+    needs_restore = is_blurry or is_dark
     if is_low_res and Stage.SAFMN in available:
         stages.append(Stage.SAFMN)
-    elif is_blurry and Stage.RESTORE in available:
+    elif needs_restore and Stage.RESTORE in available:
         stages.append(Stage.RESTORE)
 
     return RouteDecision(tags=tags, stages=stages, skip=len(stages) == 0)

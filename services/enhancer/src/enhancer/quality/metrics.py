@@ -23,6 +23,7 @@ class QualityMetrics(BaseModel):
     overexposed_ratio: float
     exposure_abs_error_to_target: float
     channel_imbalance: float
+    noise_sigma: float
 
 
 def _to_gray_norm(image_bgr: np.ndarray) -> np.ndarray:
@@ -37,6 +38,17 @@ def _entropy(gray_uint8: np.ndarray) -> float:
         return 0.0
     probs = hist[hist > 0] / total
     return float(-np.sum(probs * np.log2(probs)))
+
+
+def estimate_noise_sigma(gray_uint8: np.ndarray) -> float:
+    """Оценка σ гауссова шума по Immerkær (1996), шкала 0-255. Реагирует на зерно, не на края."""
+    h, w = gray_uint8.shape
+    if h < 3 or w < 3:
+        return 0.0
+    kernel = np.array([[1, -2, 1], [-2, 4, -2], [1, -2, 1]], dtype=np.float32)
+    conv = cv2.filter2D(gray_uint8.astype(np.float32), -1, kernel)
+    total = float(np.abs(conv).sum())
+    return float(total * np.sqrt(0.5 * np.pi) / (6.0 * (w - 2) * (h - 2)))
 
 
 def _colorfulness(image_bgr: np.ndarray) -> float:
@@ -73,4 +85,5 @@ def compute_metrics(image_bgr: np.ndarray) -> QualityMetrics:
         overexposed_ratio=float((gray_norm > OVEREXPOSED_THRESHOLD).mean()),
         exposure_abs_error_to_target=float(abs(brightness_mean - EXPOSURE_TARGET)),
         channel_imbalance=channel_imbalance,
+        noise_sigma=estimate_noise_sigma(gray_uint8),
     )
