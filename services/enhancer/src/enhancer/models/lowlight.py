@@ -34,6 +34,9 @@ def _is_hdr_scene(image_bgr: np.ndarray) -> bool:
 
 WELL_EXP_SIGMA = 0.12
 FUSION_LEVELS = 6
+# Третья (затемнённая) экспозиция в fusion: поджимает раздутые ореолы вокруг источников.
+# Степенная кривая сохраняет пик (1.0 -> 1.0), сжимает средне-яркие тона (гало bloom).
+HIGHLIGHT_ROLLOFF_GAMMA = 1.8
 
 
 def well_exposedness(image_f: np.ndarray, sigma: float = WELL_EXP_SIGMA) -> np.ndarray:
@@ -88,12 +91,18 @@ def exposure_fusion(images: list[np.ndarray], weights: list[np.ndarray], levels:
 
 
 def fuse_exposures(original_bgr: np.ndarray, enhanced_bgr: np.ndarray) -> np.ndarray:
-    """Тон-компрессия HDR-сцены: вернуть оригинальные света, сохранив вытянутые осветлением тени."""
+    """Тон-компрессия HDR-сцены: вернуть оригинальные света, сохранив вытянутые осветлением тени.
+
+    Третья экспозиция (затемнённый выход) поджимает раздутые ореолы вокруг источников света.
+    """
     orig = original_bgr.astype(np.float32) / 255.0
     enh = enhanced_bgr.astype(np.float32) / 255.0
+    rolled = np.power(enh, HIGHLIGHT_ROLLOFF_GAMMA).astype(np.float32)
     h, w = orig.shape[:2]
     levels = max(1, min(FUSION_LEVELS, int(np.log2(max(2, min(h, w))))))
-    fused = exposure_fusion([orig, enh], [well_exposedness(orig), well_exposedness(enh)], levels)
+    images = [orig, enh, rolled]
+    weights = [well_exposedness(orig), well_exposedness(enh), well_exposedness(rolled)]
+    fused = exposure_fusion(images, weights, levels)
     return (fused * 255.0).clip(0, 255).round().astype(np.uint8)
 
 

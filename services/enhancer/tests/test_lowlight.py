@@ -87,6 +87,20 @@ def test_fusion_suppresses_bloom_keeps_shadows() -> None:
     assert right > original[:, 32:].mean() + 40  # тень реально осветлена
 
 
+def test_rolloff_keeps_peak_source_compresses_halo() -> None:
+    original = np.zeros((64, 64, 3), dtype=np.uint8)
+    original[:, :22] = 255  # пиковый источник (выгорел в оригинале)
+    original[:, 22:44] = 160  # ореол вокруг
+    original[:, 44:] = 20  # тень
+    enhanced = np.zeros((64, 64, 3), dtype=np.uint8)
+    enhanced[:, :22] = 255
+    enhanced[:, 22:44] = 235  # осветление раздуло ореол
+    enhanced[:, 44:] = 120
+    fused = fuse_exposures(original, enhanced)
+    assert fused[:, 4:18].mean() > 230  # пиковый источник сохранён, не посерел
+    assert fused[:, 26:40].mean() < enhanced[:, 22:44].mean()  # ореол поджат
+
+
 def test_orange_halo_is_desaturated() -> None:
     original = np.full((8, 8, 3), (40, 50, 70), dtype=np.uint8)  # тёмный тёплый
     enhanced = np.full((8, 8, 3), (20, 110, 230), dtype=np.uint8)  # насыщенный оранжевый (OOD)
