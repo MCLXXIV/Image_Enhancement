@@ -37,6 +37,7 @@ def _try_build_safmn() -> Enhancer | None:
             n_blocks=settings.safmn_n_blocks,
             ffn_scale=settings.safmn_ffn_scale,
             target_long_side=settings.sr_target_long_side,
+            strength=settings.safmn_strength,
         )
         log.info("safmn.loaded", scales=sorted(weights_by_scale))
         return stage

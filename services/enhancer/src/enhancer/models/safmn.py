@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import cv2
 import numpy as np
 import torch
 
@@ -14,6 +15,16 @@ from enhancer.models.base import StageParams
 def choose_scale(long_side: int, scales: list[int], target_long_side: int) -> int:
     """Масштаб, чей выход по длинной стороне ближе всего к target. Тай-брейк в пользу меньшего."""
     return min(scales, key=lambda s: abs(long_side * s - target_long_side))
+
+
+def blend_bicubic(original_bgr: np.ndarray, sr_bgr: np.ndarray, strength: float) -> np.ndarray:
+    """Подмешивает бикубик-апскейл к SR-выходу, <1.0 возвращает натуральную фактуру."""
+    if strength >= 1.0:
+        return sr_bgr
+    h, w = sr_bgr.shape[:2]
+    bicubic = cv2.resize(original_bgr, (w, h), interpolation=cv2.INTER_CUBIC)
+    blended = sr_bgr.astype(np.float32) * strength + bicubic.astype(np.float32) * (1.0 - strength)
+    return blended.round().clip(0, 255).astype(np.uint8)
 
 
 class SAFMNEnhancer:
@@ -32,12 +43,14 @@ class SAFMNEnhancer:
         n_blocks: int = 16,
         ffn_scale: float = 2.0,
         target_long_side: int = 1920,
+        strength: float = 1.0,
     ) -> None:
         if not weights_by_scale:
             raise ValueError("SAFMNEnhancer requires at least one scale checkpoint")
         self._tile = tile
         self._tile_pad = tile_pad
         self._target_long_side = target_long_side
+        self._strength = float(np.clip(strength, 0.0, 1.0))
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
         self._device = torch.device(device)
@@ -112,4 +125,4 @@ class SAFMNEnhancer:
                 if self._tile > 0
                 else self._infer_full(tensor, model)
             )
-        return self._from_tensor(sr)
+        return blend_bicubic(image_bgr, self._from_tensor(sr), self._strength)

@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     safmn_dim: int = Field(default=128, alias="SAFMN_DIM")
     safmn_n_blocks: int = Field(default=16, alias="SAFMN_N_BLOCKS")
     safmn_ffn_scale: float = Field(default=2.0, alias="SAFMN_FFN_SCALE")
+    # Доля SR-выхода в результате: 1.0 только модель, <1.0 подмешивает бикубик (меньше пластика).
+    safmn_strength: float = Field(default=0.8, alias="SAFMN_STRENGTH")
 
     # --- Retinexformer (low-light: экспозиция / шум / цвет) ---
     lowlight_weights_path: str | None = Field(default=None, alias="LOWLIGHT_WEIGHTS_PATH")
