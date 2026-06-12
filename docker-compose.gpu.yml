@@ -9,6 +9,9 @@ services:
     environment:
       SAFMN_DEVICE: cuda
       SAFMN_FP16: "true"
+      LOWLIGHT_DEVICE: cuda
+      RESTORE_DEVICE: cuda
+      IQA_DEVICE: cuda
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     deploy:

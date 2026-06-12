@@ -15,13 +15,16 @@ from enhancer.observability import (
     log,
 )
 from enhancer.pipeline import Pipeline
+from enhancer.quality.iqa import IqaScorer
 from enhancer.schemas import EnhanceParams, HealthResponse
+from enhancer.settings import settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
-    pipeline = Pipeline()
+    iqa = IqaScorer(device=settings.iqa_device) if settings.iqa_gate_enabled else None
+    pipeline = Pipeline(iqa=iqa)
     app.state.pipeline = pipeline
     for stage, enhancer in pipeline.stages.items():
         enhance_model_info.labels(stage=stage.value, version=enhancer.version).set(1)

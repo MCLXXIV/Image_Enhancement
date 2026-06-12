@@ -9,6 +9,8 @@ import numpy as np
 from fastapi import HTTPException
 
 from enhancer.observability import (
+    enhance_iqa_after,
+    enhance_iqa_before,
     enhance_psnr_vs_input,
     enhance_quality_after,
     enhance_quality_before,
@@ -50,6 +52,8 @@ def build_headers(result: EnhanceResult) -> dict[str, str]:
         "X-Enhance-Scale-Factor": f"{result.scale_factor:.2f}",
         "X-Enhance-Quality-Before": result.metrics_before.model_dump_json(),
         "X-Enhance-Quality-After": result.metrics_after.model_dump_json(),
+        "X-Enhance-Iqa-Before": json.dumps(result.iqa_before),
+        "X-Enhance-Iqa-After": json.dumps(result.iqa_after),
         "X-Enhance-Model-Versions": json.dumps(result.model_versions),
     }
 
@@ -63,3 +67,7 @@ def observe_quality(result: EnhanceResult) -> None:
     if not result.skipped:
         enhance_psnr_vs_input.observe(result.psnr_vs_input)
         enhance_scale_factor.observe(result.scale_factor)
+        for metric_name, value in result.iqa_before.items():
+            enhance_iqa_before.labels(metric=metric_name).observe(value)
+        for metric_name, value in result.iqa_after.items():
+            enhance_iqa_after.labels(metric=metric_name).observe(value)

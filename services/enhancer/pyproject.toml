@@ -15,6 +15,10 @@ dependencies = [
   "opencv-python-headless>=4.10",
   "pillow>=11.0",
   "torch>=2.4",
+  "einops>=0.8",
+  "timm>=0.9",
+  "thop>=0.1",
+  "pyiqa>=0.1.13",
 ]
 
 [project.optional-dependencies]
@@ -23,6 +27,7 @@ dev = [
   "httpx>=0.27",
   "ruff>=0.8",
   "mypy>=1.13",
+  "gdown>=5.0",
 ]
 
 [build-system]
@@ -35,6 +40,11 @@ where = ["src"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# Вендоренные 1:1 архитектуры — внешний код, не приводим к нашему стилю.
+extend-exclude = [
+  "src/enhancer/models/_scunet_arch.py",
+  "src/enhancer/models/_retinexformer_arch.py",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
@@ -46,5 +56,17 @@ packages = ["enhancer"]
 mypy_path = "src"
 
 [[tool.mypy.overrides]]
-module = ["cv2.*"]
+module = ["cv2.*", "pyiqa.*", "einops.*", "timm.*", "thop.*"]
 ignore_missing_imports = true
+
+# Вендоренные 1:1 архитектуры — внешний код, mypy их не проверяет.
+[[tool.mypy.overrides]]
+module = ["enhancer.models._scunet_arch", "enhancer.models._retinexformer_arch"]
+ignore_errors = true
+
+# Модельные обёртки вызывают нетипизированный torch (forward даёт Any). Ослабляем
+# два strict-флага только тут, остальной пакет остаётся под mypy --strict.
+[[tool.mypy.overrides]]
+module = ["enhancer.models.*"]
+warn_return_any = false
+disallow_untyped_calls = false

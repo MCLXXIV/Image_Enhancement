@@ -1,29 +1,39 @@
+import cv2
 import numpy as np
 
 from enhancer.quality.metrics import compute_metrics
 from enhancer.quality.router import Stage, Tag, route
 
+ALL_STAGES = {Stage.LOW_LIGHT, Stage.RESTORE, Stage.SAFMN}
 
-def test_neutral_image_is_skipped(neutral_image: np.ndarray) -> None:
-    decision = route(compute_metrics(neutral_image))
+
+def test_no_stages_available_skips(neutral_image: np.ndarray) -> None:
+    decision = route(compute_metrics(neutral_image), 256, 256, available_stages=set())
     assert decision.skip
     assert decision.stages == []
 
 
-def test_dark_image_routes_to_gamma(dark_image: np.ndarray) -> None:
-    decision = route(compute_metrics(dark_image))
+def test_small_image_routes_to_safmn(neutral_image: np.ndarray) -> None:
+    decision = route(compute_metrics(neutral_image), 256, 256, ALL_STAGES)
+    assert Tag.LOW_RES in decision.tags
+    assert Stage.SAFMN in decision.stages
+
+
+def test_dark_image_routes_to_lowlight_first(dark_image: np.ndarray) -> None:
+    decision = route(compute_metrics(dark_image), 256, 256, ALL_STAGES)
     assert Tag.LOW_LIGHT in decision.tags
-    assert Stage.GAMMA in decision.stages
-    assert not decision.skip
+    assert decision.stages[0] == Stage.LOW_LIGHT  # тон применяется до апскейла
 
 
-def test_blurry_image_routes_to_unsharp(blurry_image: np.ndarray) -> None:
-    decision = route(compute_metrics(blurry_image))
+def test_large_blurry_routes_to_restore_not_safmn(blurry_image: np.ndarray) -> None:
+    big = cv2.resize(blurry_image, (1400, 1400))
+    decision = route(compute_metrics(big), 1400, 1400, ALL_STAGES)
     assert Tag.BLURRY in decision.tags
-    assert Stage.UNSHARP in decision.stages
+    assert Stage.RESTORE in decision.stages
+    assert Stage.SAFMN not in decision.stages  # большое фото не апскейлим
 
 
-def test_color_cast_routes_to_white_balance(color_cast_image: np.ndarray) -> None:
-    decision = route(compute_metrics(color_cast_image))
-    assert Tag.COLOR_CAST in decision.tags
-    assert Stage.WHITE_BALANCE in decision.stages
+def test_large_neutral_image_skipped(neutral_image: np.ndarray) -> None:
+    big = cv2.resize(neutral_image, (1400, 1400), interpolation=cv2.INTER_NEAREST)
+    decision = route(compute_metrics(big), 1400, 1400, ALL_STAGES)
+    assert decision.skip

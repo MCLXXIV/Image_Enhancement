@@ -24,6 +24,9 @@ class SAFMNEnhancer:
         tile: int = 256,
         tile_pad: int = 16,
         use_fp16: bool = False,
+        dim: int = 128,
+        n_blocks: int = 16,
+        ffn_scale: float = 2.0,
     ) -> None:
         self._scale = scale
         self._tile = tile
@@ -32,7 +35,7 @@ class SAFMNEnhancer:
             device = "cuda" if torch.cuda.is_available() else "cpu"
         self._device = torch.device(device)
         self._use_fp16 = use_fp16 and self._device.type == "cuda"
-        self._model = SAFMN(dim=128, n_blocks=16, ffn_scale=2.0, upscaling_factor=scale)
+        self._model = SAFMN(dim=dim, n_blocks=n_blocks, ffn_scale=ffn_scale, upscaling_factor=scale)
         checkpoint = torch.load(weights_path, map_location="cpu", weights_only=False)
         state_dict = (
             checkpoint.get("params", checkpoint) if isinstance(checkpoint, dict) else checkpoint

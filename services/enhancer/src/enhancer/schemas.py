@@ -1,14 +1,13 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class EnhanceParams(BaseModel):
-    force: bool | None = None
-    gamma: float | None = Field(default=None, ge=0.5, le=2.0)
-    clahe_clip: float | None = Field(default=None, ge=1.0, le=6.0)
-    sharp_amount: float | None = Field(default=None, ge=0.0, le=2.0)
-    denoise_strength: float | None = Field(default=None, ge=0.0, le=1.0)
-    use_safmn: bool | None = None
-    safmn_only: bool | None = None
+    """Опциональные отладочные оверрайды. По умолчанию пайплайн полностью автоматический."""
+
+    force: bool | None = None  # применить даже если фото «хорошее» + отключить IQA-fallback
+    force_lowlight: bool | None = None  # принудительно прогнать Zero-DCE++
+    force_restore: bool | None = None  # принудительно прогнать SCUNet
+    force_safmn: bool | None = None  # принудительно прогнать Real-SAFMN++
 
 
 class HealthResponse(BaseModel):

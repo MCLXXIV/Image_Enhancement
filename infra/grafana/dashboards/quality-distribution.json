@@ -2,7 +2,7 @@
   "title": "Enhancer - Quality distribution",
   "uid": "enhancer-quality",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "10s",
   "time": { "from": "now-1h", "to": "now" },
   "timezone": "browser",
@@ -221,6 +221,79 @@
         }
       ],
       "fieldConfig": { "defaults": { "unit": "none", "decimals": 3 } }
+    },
+    {
+      "id": 50,
+      "type": "stat",
+      "title": "BRISQUE - Δ avg (after - before, 5m, <0 = лучше)",
+      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 37 },
+      "targets": [
+        {
+          "expr": "sum(rate(enhance_iqa_after_sum{metric=\"brisque\"}[5m])) / sum(rate(enhance_iqa_after_count{metric=\"brisque\"}[5m])) - sum(rate(enhance_iqa_before_sum{metric=\"brisque\"}[5m])) / sum(rate(enhance_iqa_before_count{metric=\"brisque\"}[5m]))",
+          "legendFormat": "Δ brisque",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0 },
+              { "color": "red", "value": 0.5 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 51,
+      "type": "stat",
+      "title": "NIQE - Δ avg (after - before, 5m, <0 = лучше)",
+      "gridPos": { "h": 4, "w": 12, "x": 12, "y": 37 },
+      "targets": [
+        {
+          "expr": "sum(rate(enhance_iqa_after_sum{metric=\"niqe\"}[5m])) / sum(rate(enhance_iqa_after_count{metric=\"niqe\"}[5m])) - sum(rate(enhance_iqa_before_sum{metric=\"niqe\"}[5m])) / sum(rate(enhance_iqa_before_count{metric=\"niqe\"}[5m]))",
+          "legendFormat": "Δ niqe",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0 },
+              { "color": "red", "value": 0.5 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 52,
+      "type": "timeseries",
+      "title": "IQA before vs after (5m moving, lower = better)",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 41 },
+      "targets": [
+        {
+          "expr": "sum by (metric) (rate(enhance_iqa_before_sum[5m])) / sum by (metric) (rate(enhance_iqa_before_count[5m]))",
+          "legendFormat": "before:{{metric}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (metric) (rate(enhance_iqa_after_sum[5m])) / sum by (metric) (rate(enhance_iqa_after_count[5m]))",
+          "legendFormat": "after:{{metric}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 2 } }
     }
   ]
 }

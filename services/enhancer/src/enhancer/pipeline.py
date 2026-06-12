@@ -1,4 +1,4 @@
-"""Главный pipeline: считает метрики, выбирает стадии, применяет и проверяет, что не стало хуже."""
+"""Главный pipeline: считает метрики, выбирает модель, применяет и проверяет, что стало лучше."""
 
 from __future__ import annotations
 
@@ -11,9 +11,13 @@ import numpy as np
 from enhancer.models.base import Enhancer, StageParams
 from enhancer.models.registry import build_default_stages
 from enhancer.observability import enhance_request_duration_seconds, enhance_requests_total, log
+from enhancer.quality.iqa import IqaScorer
 from enhancer.quality.metrics import QualityMetrics, compute_metrics
 from enhancer.quality.router import RouteDecision, Stage, route
 from enhancer.schemas import EnhanceParams
+
+# Порядок применения стадий: сначала тон, потом детали/апскейл.
+_STAGE_ORDER: dict[Stage, int] = {Stage.LOW_LIGHT: 0, Stage.RESTORE: 1, Stage.SAFMN: 1}
 
 
 @dataclass
@@ -29,48 +33,25 @@ class EnhanceResult:
     total_latency_ms: float = 0.0
     psnr_vs_input: float = 0.0
     scale_factor: float = 1.0
-
-
-def _stage_params(p: EnhanceParams) -> StageParams:
-    out: StageParams = {}
-    if p.gamma is not None:
-        out["gamma"] = p.gamma
-    if p.clahe_clip is not None:
-        out["clahe_clip"] = p.clahe_clip
-    if p.sharp_amount is not None:
-        out["sharp_amount"] = p.sharp_amount
-    if p.denoise_strength is not None:
-        out["denoise_strength"] = p.denoise_strength
-    return out
-
-
-def _is_regression(before: QualityMetrics, after: QualityMetrics) -> bool:
-    """Стало хуже, если резкость упала больше чем на 25% или контраст ниже 70% от исходного."""
-    if before.sharpness_laplacian_var > 0 and (
-        after.sharpness_laplacian_var / before.sharpness_laplacian_var < 0.75
-    ):
-        return True
-    return bool(before.contrast_std > 0 and after.contrast_std / before.contrast_std < 0.70)
+    iqa_before: dict[str, float] = field(default_factory=dict)
+    iqa_after: dict[str, float] = field(default_factory=dict)
 
 
 def _override_stages(
-    decision: RouteDecision, params: EnhanceParams, available_stages: set[Stage]
+    decision: RouteDecision, params: EnhanceParams, available: set[Stage]
 ) -> list[Stage]:
-    """Если пользователь руками задал параметр стадии в params, принудительно её включает."""
-    if params.safmn_only:
-        return [Stage.SAFMN] if Stage.SAFMN in available_stages else []
+    """Авто-стадии из роутера + принудительные force_* оверрайды. Дедуп + порядок."""
     stages = list(decision.stages)
-    if params.gamma is not None and Stage.GAMMA not in stages:
-        stages.append(Stage.GAMMA)
-    if params.clahe_clip is not None and Stage.CLAHE not in stages:
-        stages.append(Stage.CLAHE)
-    if params.sharp_amount is not None and Stage.UNSHARP not in stages:
-        stages.append(Stage.UNSHARP)
-    if params.denoise_strength is not None and Stage.DENOISE not in stages:
-        stages.append(Stage.DENOISE)
-    if params.use_safmn and Stage.SAFMN in available_stages and Stage.SAFMN not in stages:
-        stages.append(Stage.SAFMN)
-    return [s for s in stages if s in available_stages]
+    forced = {
+        Stage.LOW_LIGHT: params.force_lowlight,
+        Stage.RESTORE: params.force_restore,
+        Stage.SAFMN: params.force_safmn,
+    }
+    for stage, on in forced.items():
+        if on and stage not in stages:
+            stages.append(stage)
+    deduped = [s for s in dict.fromkeys(stages) if s in available]
+    return sorted(deduped, key=lambda s: _STAGE_ORDER.get(s, 99))
 
 
 def _psnr_vs_input(original: np.ndarray, current: np.ndarray) -> float:
@@ -85,8 +66,13 @@ def _psnr_vs_input(original: np.ndarray, current: np.ndarray) -> float:
 
 
 class Pipeline:
-    def __init__(self, stages: dict[Stage, Enhancer] | None = None) -> None:
+    def __init__(
+        self,
+        stages: dict[Stage, Enhancer] | None = None,
+        iqa: IqaScorer | None = None,
+    ) -> None:
         self.stages = stages if stages is not None else build_default_stages()
+        self.iqa = iqa
 
     def run(self, image_bgr: np.ndarray, params: EnhanceParams | None = None) -> EnhanceResult:
         params = params or EnhanceParams()
@@ -100,60 +86,38 @@ class Pipeline:
         with enhance_request_duration_seconds.labels(stage="route").time():
             decision = route(metrics_before, width=w, height=h, available_stages=available)
 
-        force = bool(params.force) or bool(params.safmn_only)
+        force = bool(params.force)
         stages_to_apply = _override_stages(decision, params, available)
-        if decision.skip and not force and not stages_to_apply:
-            metrics_after = metrics_before
-            total_ms = (time.perf_counter() - total_t0) * 1000
-            enhance_request_duration_seconds.labels(stage="total").observe(total_ms / 1000)
-            enhance_requests_total.labels(outcome="skipped").inc()
-            return EnhanceResult(
-                image=image_bgr,
-                applied=[],
-                skipped=True,
-                fallback=False,
-                metrics_before=metrics_before,
-                metrics_after=metrics_after,
-                model_versions=self._versions([]),
-                total_latency_ms=total_ms,
-                psnr_vs_input=100.0,
-                scale_factor=1.0,
-            )
+        if not stages_to_apply:
+            return self._skipped_result(image_bgr, metrics_before, total_t0)
 
         stage_latency: dict[str, float] = {}
         current = image_bgr
-        stage_params = _stage_params(params)
+        empty: StageParams = {}
         for stage in stages_to_apply:
             enhancer = self.stages[stage]
             t0 = time.perf_counter()
             with enhance_request_duration_seconds.labels(stage=stage.value).time():
-                current = enhancer.apply(current, stage_params)
+                current = enhancer.apply(current, empty)
             stage_latency[stage.value] = (time.perf_counter() - t0) * 1000
 
         with enhance_request_duration_seconds.labels(stage="verify").time():
             metrics_after = compute_metrics(current)
             psnr_input = _psnr_vs_input(image_bgr, current)
+            iqa_before, iqa_after = self._score_iqa(image_bgr, current)
 
         fallback = False
-        if not force and _is_regression(metrics_before, metrics_after):
+        if not force and self.iqa is not None and not self.iqa.improved(iqa_before, iqa_after):
             log.warning(
-                "pipeline.fallback",
-                reason="regression",
-                sharpness_before=metrics_before.sharpness_laplacian_var,
-                sharpness_after=metrics_after.sharpness_laplacian_var,
-                contrast_before=metrics_before.contrast_std,
-                contrast_after=metrics_after.contrast_std,
+                "pipeline.fallback", reason="iqa_regression", before=iqa_before, after=iqa_after
             )
-            current = image_bgr
-            metrics_after = metrics_before
-            psnr_input = 100.0
+            current, metrics_after, psnr_input = image_bgr, metrics_before, 100.0
+            iqa_after = iqa_before
             fallback = True
 
         total_ms = (time.perf_counter() - total_t0) * 1000
         enhance_request_duration_seconds.labels(stage="total").observe(total_ms / 1000)
-        outcome = "fallback" if fallback else "enhanced"
-        enhance_requests_total.labels(outcome=outcome).inc()
-        scale_factor = current.shape[1] / image_bgr.shape[1]
+        enhance_requests_total.labels(outcome="fallback" if fallback else "enhanced").inc()
 
         return EnhanceResult(
             image=current,
@@ -166,7 +130,35 @@ class Pipeline:
             stage_latency_ms=stage_latency,
             total_latency_ms=total_ms,
             psnr_vs_input=psnr_input,
-            scale_factor=scale_factor,
+            scale_factor=current.shape[1] / image_bgr.shape[1],
+            iqa_before=iqa_before,
+            iqa_after=iqa_after,
+        )
+
+    def _score_iqa(
+        self, original: np.ndarray, current: np.ndarray
+    ) -> tuple[dict[str, float], dict[str, float]]:
+        if self.iqa is None or not self.iqa.available:
+            return {}, {}
+        return self.iqa.score(original), self.iqa.score(current)
+
+    def _skipped_result(
+        self, image_bgr: np.ndarray, metrics: QualityMetrics, total_t0: float
+    ) -> EnhanceResult:
+        total_ms = (time.perf_counter() - total_t0) * 1000
+        enhance_request_duration_seconds.labels(stage="total").observe(total_ms / 1000)
+        enhance_requests_total.labels(outcome="skipped").inc()
+        return EnhanceResult(
+            image=image_bgr,
+            applied=[],
+            skipped=True,
+            fallback=False,
+            metrics_before=metrics,
+            metrics_after=metrics,
+            model_versions=self._versions([]),
+            total_latency_ms=total_ms,
+            psnr_vs_input=100.0,
+            scale_factor=1.0,
         )
 
     def _versions(self, applied: list[Stage]) -> dict[str, str]:

@@ -127,3 +127,44 @@
 - `SSIM` - показывает, насколько результат похож на эталон по структуре: формы, контуры, текстуры, локальный контраст и общая структура объектов.
 - `LPIPS` - показывает, насколько результат визуально отличается от эталона. Чем ниже `LPIPS`, тем визуально ближе результат к эталону.
 
+
+## Ручной отбор 4k изображений
+
+Для быстрого отбора лучших и худших картинок из большой папки есть статический свайп-интерфейс:
+
+```bash
+python3 scripts/build_quality_swipe_review.py \
+  --images-dir data/photos \
+  --output data/review/quality_swipe.html \
+  --best-count 5000 \
+  --worst-count 1000 \
+  --target-kept 4000
+```
+
+Скрипт считает no-reference метрики качества через Pillow/Numpy, сохраняет кеш в `data/review/quality_scores.csv` и строит `data/review/quality_swipe.html`. В браузере свайп вправо или `D` оставляет картинку, свайп влево или `A` отклоняет. Кнопки `JSON`, `CSV`, `HTML` экспортируют выбранные изображения.
+
+После экспорта `quality_swipe_selected.json` можно собрать выбранные файлы в отдельную папку:
+
+```bash
+python3 scripts/materialize_swipe_selection.py \
+  quality_swipe_selected.json \
+  --output-dir data/selected \
+  --mode symlink
+```
+
+Если нужна физическая копия датасета вместо ссылок, используй `--mode copy`.
+
+
+## Запуск на GPU (хост с NVIDIA)
+
+```bash
+bash infra/deploy/bootstrap.sh   # один раз: docker + nvidia-container-toolkit
+make install                     # venv + зависимости
+make weights                     # веса 3 моделей в data/weights/
+make up-gpu                      # стек на CUDA
+make logs-gpu                    # проверить: lowlight/restore/safmn .loaded
+```
+
+Сервис: `http://localhost:8000` · демо: `http://localhost:8501`.
+Остановить — `make down-gpu`.
+

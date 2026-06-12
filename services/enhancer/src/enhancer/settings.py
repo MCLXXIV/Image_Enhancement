@@ -12,11 +12,40 @@ class Settings(BaseSettings):
     mlflow_tracking_uri: str = Field(default="http://mlflow:5000", alias="MLFLOW_TRACKING_URI")
     s3_endpoint_url: str = Field(default="http://minio:9000", alias="S3_ENDPOINT_URL")
 
+    # --- Real-SAFMN++ (SR + restoration на мелких/низкоразрешённых фото) ---
     safmn_weights_path: str | None = Field(default=None, alias="SAFMN_WEIGHTS_PATH")
     safmn_scale: int = Field(default=4, alias="SAFMN_SCALE")
     safmn_device: str | None = Field(default=None, alias="SAFMN_DEVICE")
     safmn_tile: int = Field(default=256, alias="SAFMN_TILE")
     safmn_fp16: bool = Field(default=False, alias="SAFMN_FP16")
+    # Конфиг архитектуры под конкретный чекпоинт (strict load): L=128, AIM2025=96.
+    safmn_dim: int = Field(default=128, alias="SAFMN_DIM")
+    safmn_n_blocks: int = Field(default=16, alias="SAFMN_N_BLOCKS")
+    safmn_ffn_scale: float = Field(default=2.0, alias="SAFMN_FFN_SCALE")
+
+    # --- Retinexformer (low-light: экспозиция / шум / цвет) ---
+    lowlight_weights_path: str | None = Field(default=None, alias="LOWLIGHT_WEIGHTS_PATH")
+    lowlight_device: str | None = Field(default=None, alias="LOWLIGHT_DEVICE")
+    # Конфиг сети под чекпоинт (LOL_v2_real: n_feat=40, stage=1, num_blocks=1,2,2).
+    lowlight_n_feat: int = Field(default=40, alias="LOWLIGHT_N_FEAT")
+    lowlight_stage: int = Field(default=1, alias="LOWLIGHT_STAGE")
+    lowlight_num_blocks: str = Field(default="1,2,2", alias="LOWLIGHT_NUM_BLOCKS")
+
+    # --- SCUNet (restoration scale=1: шум / JPEG / лёгкий блюр на больших фото) ---
+    restore_weights_path: str | None = Field(default=None, alias="RESTORE_WEIGHTS_PATH")
+    restore_device: str | None = Field(default=None, alias="RESTORE_DEVICE")
+    restore_tile: int = Field(default=256, alias="RESTORE_TILE")
+    restore_dim: int = Field(default=64, alias="RESTORE_DIM")
+    # Конфиг блоков SCUNet под real-чекпоинт scunet_color_real_psnr.pth (CSV).
+    restore_config: str = Field(default="4,4,4,4,4,4,4", alias="RESTORE_CONFIG")
+
+    # --- Роутер: пороги размеров ---
+    low_res_max_side: int = Field(default=1280, alias="LOW_RES_MAX_SIDE")
+    sr_input_max_side: int = Field(default=2048, alias="SR_INPUT_MAX_SIDE")
+
+    # --- IQA-verify (really improved?) ---
+    iqa_device: str | None = Field(default=None, alias="IQA_DEVICE")
+    iqa_gate_enabled: bool = Field(default=True, alias="IQA_GATE_ENABLED")
 
 
 settings = Settings()

@@ -6,13 +6,11 @@ PYTEST := $(VENV)/bin/pytest
 RUFF := $(VENV)/bin/ruff
 MYPY := $(VENV)/bin/mypy
 
-WEIGHTS_DIR := .volumes/weights
-SAFMN_WEIGHTS := $(WEIGHTS_DIR)/Real_SAFMNpp_x4.pth
-SAFMN_WEIGHTS_URL := https://huggingface.co/Meloo/SAFMN/resolve/main/SAFMN_L_Real_LSDIR_x4.pth?download=true
+WEIGHTS_DIR := data/weights
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install test lint fmt full-check up up-infra up-gpu down down-gpu logs logs-gpu clean weights demo enhance-curl load-test
+.PHONY: help install test lint fmt full-check up up-infra up-gpu down down-gpu logs logs-gpu clean weights data demo enhance-curl load-test
 
 GPU_COMPOSE := docker compose -f docker-compose.yml -f docker-compose.gpu.yml
 
@@ -26,8 +24,9 @@ help:
 	@echo "  fmt          ruff check --fix + ruff format (исправляет на месте)"
 	@echo "  full-check   lint + test (= то же, что CI)"
 	@echo ""
-	@echo "Веса SAFMN:"
-	@echo "  weights      скачать Real_SAFMN++ x4 в $(SAFMN_WEIGHTS)"
+	@echo "Веса и данные:"
+	@echo "  weights      скачать веса 3 моделей (SAFMN++/Retinexformer/SCUNet) в $(WEIGHTS_DIR)"
+	@echo "  data         скачать Kaggle-датасет недвиги в data/"
 	@echo ""
 	@echo "Стек (docker compose):"
 	@echo "  up           docker compose up -d --build (весь стек, CPU torch)"
@@ -66,13 +65,10 @@ fmt:
 full-check: lint test
 
 weights:
-	@mkdir -p $(WEIGHTS_DIR)
-	@if [ -f "$(SAFMN_WEIGHTS)" ]; then \
-		echo "weights already at $(SAFMN_WEIGHTS), skipping"; \
-	else \
-		echo "downloading Real_SAFMN++ x4 from HuggingFace Meloo/SAFMN..."; \
-		curl -L -o $(SAFMN_WEIGHTS) $(SAFMN_WEIGHTS_URL); \
-	fi
+	$(PY) scripts/download_weights.py --output-dir $(WEIGHTS_DIR)
+
+data:
+	$(PY) scripts/download_kaggle_dataset.py
 
 up:
 	docker compose up -d --build

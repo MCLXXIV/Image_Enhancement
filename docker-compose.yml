@@ -15,13 +15,25 @@ services:
       S3_ENDPOINT_URL: http://minio:9000
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      SAFMN_WEIGHTS_PATH: ${SAFMN_WEIGHTS_PATH:-/weights/Real_SAFMNpp_x4.pth}
+      SAFMN_WEIGHTS_PATH: ${SAFMN_WEIGHTS_PATH:-/weights/SAFMN_L_Real_LSDIR_x4.pth}
       SAFMN_SCALE: ${SAFMN_SCALE:-4}
       SAFMN_TILE: ${SAFMN_TILE:-256}
       SAFMN_DEVICE: ${SAFMN_DEVICE:-cpu}
       SAFMN_FP16: ${SAFMN_FP16:-false}
+      SAFMN_DIM: ${SAFMN_DIM:-128}
+      LOWLIGHT_WEIGHTS_PATH: ${LOWLIGHT_WEIGHTS_PATH:-/weights/LOL_v2_real.pth}
+      LOWLIGHT_DEVICE: ${LOWLIGHT_DEVICE:-cpu}
+      LOWLIGHT_N_FEAT: ${LOWLIGHT_N_FEAT:-40}
+      LOWLIGHT_STAGE: ${LOWLIGHT_STAGE:-1}
+      LOWLIGHT_NUM_BLOCKS: ${LOWLIGHT_NUM_BLOCKS:-1,2,2}
+      RESTORE_WEIGHTS_PATH: ${RESTORE_WEIGHTS_PATH:-/weights/scunet_color_real_psnr.pth}
+      RESTORE_DEVICE: ${RESTORE_DEVICE:-cpu}
+      RESTORE_DIM: ${RESTORE_DIM:-64}
+      RESTORE_CONFIG: ${RESTORE_CONFIG:-4,4,4,4,4,4,4}
+      IQA_DEVICE: ${IQA_DEVICE:-cpu}
+      IQA_GATE_ENABLED: ${IQA_GATE_ENABLED:-true}
     volumes:
-      - ./.volumes/weights:/weights:ro
+      - ./data/weights:/weights:ro
     ports:
       - "8000:8000"
     depends_on:

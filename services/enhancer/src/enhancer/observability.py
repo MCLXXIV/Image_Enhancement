@@ -76,3 +76,17 @@ enhance_scale_factor = Histogram(
     "Output / input width ratio (>1 for SR stages)",
     buckets=(1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0),
 )
+
+enhance_iqa_before = Histogram(
+    "enhance_iqa_before",
+    "No-reference IQA score before enhancement (brisque/niqe: lower is better)",
+    labelnames=("metric",),
+    buckets=(5.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 75.0, 100.0),
+)
+
+enhance_iqa_after = Histogram(
+    "enhance_iqa_after",
+    "No-reference IQA score after enhancement (brisque/niqe: lower is better)",
+    labelnames=("metric",),
+    buckets=(5.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 75.0, 100.0),
+)
