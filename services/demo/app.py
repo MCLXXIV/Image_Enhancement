@@ -5,7 +5,6 @@ import os
 import requests
 import streamlit as st
 from PIL import Image
-from streamlit_image_comparison import image_comparison
 
 ENHANCER_URL = os.environ.get("ENHANCER_URL", "http://enhancer:8000")
 
@@ -41,16 +40,6 @@ fallback = response.headers.get("X-Enhance-Fallback") == "true"
 scale = float(response.headers.get("X-Enhance-Scale-Factor", "1.0"))
 latency = float(response.headers.get("X-Enhance-Latency-Ms", "0"))
 
-SLIDER_WIDTH = 700
-
-
-def _fit(img: Image.Image, width: int) -> Image.Image:
-    if img.width <= width:
-        return img
-    height = round(img.height * width / img.width)
-    return img.resize((width, height))
-
-
 if skipped:
     st.success("Фото уже хорошего качества, улучшение не требуется.")
     st.image(before_img, use_container_width=True)
@@ -58,15 +47,11 @@ elif fallback:
     st.warning("Улучшение не дало выигрыша по качеству, оставили оригинал.")
     st.image(before_img, use_container_width=True)
 else:
-    after_small = _fit(after_img, SLIDER_WIDTH)
-    before_small = _fit(before_img, SLIDER_WIDTH).resize(after_small.size)
-    image_comparison(
-        img1=before_small,
-        img2=after_small,
-        label1="До",
-        label2="После",
-        width=after_small.width,
-    )
+    left, right = st.columns(2)
+    left.caption("До")
+    left.image(before_img, use_container_width=True)
+    right.caption("После")
+    right.image(after_img, use_container_width=True)
     st.caption(f"Применено: {applied} · масштаб ×{scale:.1f} · {latency:.0f} мс")
     st.download_button(
         "Скачать улучшенное фото",

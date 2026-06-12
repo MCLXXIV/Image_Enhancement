@@ -10,8 +10,7 @@ RUN pip install --upgrade pip && \
     pip install \
       "streamlit>=1.40" \
       "requests>=2.32" \
-      "pillow>=11.0" \
-      "streamlit-image-comparison>=0.0.4"
+      "pillow>=11.0"
 
 COPY app.py .
 

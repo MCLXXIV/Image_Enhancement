@@ -5,12 +5,32 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
+import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F  # noqa: N812
 
 from enhancer.models._retinexformer_arch import RetinexFormer
 from enhancer.models.base import StageParams
+
+HIGHLIGHT_LO = 0.7
+HIGHLIGHT_HI = 0.95
+
+
+def protect_highlights(
+    original_bgr: np.ndarray, enhanced_bgr: np.ndarray, lo: float, hi: float
+) -> np.ndarray:
+    """Светлые зоны берём из оригинала, тёмные из enhanced. Спасает окна/пересвет от OOD-цвета."""
+    lum = cv2.cvtColor(original_bgr, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255.0
+    weight = np.clip((lum - lo) / (hi - lo), 0.0, 1.0)
+    sigma = max(original_bgr.shape[:2]) * 0.004
+    if sigma > 0:
+        weight = cv2.GaussianBlur(weight, (0, 0), sigmaX=sigma)
+    weight = weight[:, :, None]
+    blended = original_bgr.astype(np.float32) * weight + enhanced_bgr.astype(np.float32) * (
+        1.0 - weight
+    )
+    return blended.round().clip(0, 255).astype(np.uint8)
 
 
 class LowLightEnhancer:
@@ -64,4 +84,5 @@ class LowLightEnhancer:
             tensor = F.pad(tensor, (0, pad_w, 0, pad_h), mode="reflect")
         out = self._model(tensor)
         out = out[:, :, :h, :w]
-        return self._from_tensor(out)
+        enhanced = self._from_tensor(out)
+        return protect_highlights(image_bgr, enhanced, HIGHLIGHT_LO, HIGHLIGHT_HI)
