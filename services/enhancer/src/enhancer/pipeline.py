@@ -46,7 +46,7 @@ def _override_stages(
     decision: RouteDecision, params: EnhanceParams, available: set[Stage]
 ) -> list[Stage]:
     """Авто-стадии из роутера + принудительные force_* оверрайды. Дедуп + порядок."""
-    stages = list(decision.stages)
+    stages: list[Stage] = [] if params.only else list(decision.stages)
     forced = {
         Stage.LOW_LIGHT: params.force_lowlight,
         Stage.EXPOSURE: params.force_exposure,

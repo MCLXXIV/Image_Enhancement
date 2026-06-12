@@ -138,3 +138,11 @@ make up-gpu                      # стек на CUDA
 make logs-gpu                    # логи
 ```
 
+## Оценка качества на eval_set
+
+Прогнать все кейсы через ручку и собрать HTML-отчёт:
+
+```bash
+services/enhancer/.venv/bin/python scripts/eval_endpoint.py --html data/eval_set/report
+```
+

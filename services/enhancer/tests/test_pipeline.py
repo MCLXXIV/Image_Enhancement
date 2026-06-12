@@ -48,6 +48,32 @@ def test_force_safmn_overrides_router(neutral_image: np.ndarray) -> None:
     assert Stage.SAFMN in result.applied
 
 
+class _Identity:
+    """Заглушка-стадия без изменения изображения."""
+
+    name = "id"
+    version = "stub@1"
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    def apply(self, image_bgr: np.ndarray, params: StageParams) -> np.ndarray:
+        return image_bgr
+
+
+def test_only_runs_just_forced_stage(neutral_image: np.ndarray) -> None:
+    # Крупный тёмный кадр: роутер сам позвал бы low_light + restore.
+    big_dark = cv2.resize(neutral_image, (1400, 1400), interpolation=cv2.INTER_NEAREST) // 8
+    stages = {Stage.LOW_LIGHT: _Identity("low_light"), Stage.RESTORE: _Identity("restore")}
+    auto = Pipeline(stages=stages, iqa=None).run(big_dark)
+    assert Stage.RESTORE in auto.applied  # без only роутер тянет и restore
+
+    only = Pipeline(stages=stages, iqa=None).run(
+        big_dark, EnhanceParams(force=True, only=True, force_lowlight=True)
+    )
+    assert only.applied == [Stage.LOW_LIGHT]  # only оставляет ровно форснутую стадию
+
+
 def test_iqa_gate_triggers_fallback(neutral_image: np.ndarray) -> None:
     class _WorseIqa:
         available = True
