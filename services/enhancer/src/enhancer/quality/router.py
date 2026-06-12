@@ -38,7 +38,6 @@ CONTRAST_LOW = 0.12
 SHARPNESS_LOW = 60.0
 UNDEREXPOSED_LOW = 0.20
 OVEREXPOSED_HIGH = 0.10
-HIGHLIGHT_PRESENT = 0.01
 CHANNEL_IMBALANCE_HIGH = 0.12
 
 
@@ -66,15 +65,12 @@ def route(
     if m.channel_imbalance > CHANNEL_IMBALANCE_HIGH:
         tags.append(Tag.COLOR_CAST)
 
-    needs_tone = (is_dark or is_low_contrast) and not is_overexposed
-    has_highlights = m.overexposed_ratio > HIGHLIGHT_PRESENT
-    if is_overexposed and Stage.EXPOSURE in available:
+    is_washed_out = m.brightness_mean > BRIGHTNESS_HIGH
+    needs_tone = (is_dark or is_low_contrast) and not is_washed_out
+    if is_washed_out and Stage.EXPOSURE in available:
         stages.append(Stage.EXPOSURE)
-    elif needs_tone:
-        if has_highlights and Stage.EXPOSURE in available:
-            stages.append(Stage.EXPOSURE)
-        if Stage.LOW_LIGHT in available:
-            stages.append(Stage.LOW_LIGHT)
+    elif needs_tone and Stage.LOW_LIGHT in available:
+        stages.append(Stage.LOW_LIGHT)
 
     is_blurry = m.sharpness_laplacian_var < SHARPNESS_LOW
     max_side = max(width or 0, height or 0)

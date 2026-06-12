@@ -32,13 +32,12 @@ def test_overexposed_routes_to_exposure(overexposed_image: np.ndarray) -> None:
     assert Stage.LOW_LIGHT not in decision.stages
 
 
-def test_dark_with_highlights_runs_exposure_before_lowlight(dark_image: np.ndarray) -> None:
+def test_dark_with_highlights_routes_to_lowlight_not_exposure(dark_image: np.ndarray) -> None:
     img = dark_image.copy()
     img[:48, :48] = 255  # яркий засвет на тёмном кадре
     decision = route(compute_metrics(img), 256, 256, ALL_STAGES)
-    assert Stage.EXPOSURE in decision.stages
     assert Stage.LOW_LIGHT in decision.stages
-    assert decision.stages.index(Stage.EXPOSURE) < decision.stages.index(Stage.LOW_LIGHT)
+    assert Stage.EXPOSURE not in decision.stages
 
 
 def test_large_blurry_routes_to_restore_not_safmn(blurry_image: np.ndarray) -> None:
