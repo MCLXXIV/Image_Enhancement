@@ -14,9 +14,8 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY src ./src
 
-# CUDA 12.8 wheel для Blackwell (sm_120, RTX 50-series). cu124/126 не поддерживают sm_120.
 RUN pip install --upgrade pip \
-    && pip install torch --index-url https://download.pytorch.org/whl/cu128 \
+    && pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128 \
     && pip install .
 
 EXPOSE 8000
