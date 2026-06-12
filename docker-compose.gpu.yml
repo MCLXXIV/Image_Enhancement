@@ -9,6 +9,7 @@ services:
     environment:
       SAFMN_DEVICE: cuda
       SAFMN_FP16: "true"
+      SAFMN_TILE: ${SAFMN_TILE:-512}
       LOWLIGHT_DEVICE: cuda
       RESTORE_DEVICE: cuda
       IQA_DEVICE: cuda

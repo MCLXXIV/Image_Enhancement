@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated
 
+import numpy as np
 from fastapi import FastAPI, File, Form, HTTPException, Response, UploadFile
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import ValidationError
@@ -20,6 +21,18 @@ from enhancer.schemas import EnhanceParams, HealthResponse
 from enhancer.settings import settings
 
 
+def _warmup(pipeline: Pipeline) -> None:
+    """Прогон каждой модели на старте, чтобы первый запрос не ловил cold start CUDA-ядер."""
+    dummy = np.full((320, 320, 3), 64, dtype=np.uint8)
+    for stage, enhancer in pipeline.stages.items():
+        try:
+            enhancer.apply(dummy, {})
+        except Exception as exc:  # noqa: BLE001
+            log.warning("warmup.failed", stage=stage.value, error=str(exc))
+    if pipeline.iqa is not None and pipeline.iqa.available:
+        pipeline.iqa.score(dummy)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
@@ -28,6 +41,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.pipeline = pipeline
     for stage, enhancer in pipeline.stages.items():
         enhance_model_info.labels(stage=stage.value, version=enhancer.version).set(1)
+    _warmup(pipeline)
     log.info("enhancer.startup", version=__version__, stages=[s.value for s in pipeline.stages])
     yield
     log.info("enhancer.shutdown")

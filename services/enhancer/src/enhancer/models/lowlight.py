@@ -13,8 +13,8 @@ import torch.nn.functional as F  # noqa: N812
 from enhancer.models._retinexformer_arch import RetinexFormer
 from enhancer.models.base import StageParams
 
-HIGHLIGHT_LO = 0.7
-HIGHLIGHT_HI = 0.95
+HIGHLIGHT_LO = 0.5
+HIGHLIGHT_HI = 0.9
 
 
 def protect_highlights(
@@ -23,7 +23,7 @@ def protect_highlights(
     """Светлые зоны берём из оригинала, тёмные из enhanced. Спасает окна/пересвет от OOD-цвета."""
     lum = cv2.cvtColor(original_bgr, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255.0
     weight = np.clip((lum - lo) / (hi - lo), 0.0, 1.0)
-    sigma = max(original_bgr.shape[:2]) * 0.004
+    sigma = max(original_bgr.shape[:2]) * 0.008
     if sigma > 0:
         weight = cv2.GaussianBlur(weight, (0, 0), sigmaX=sigma)
     weight = weight[:, :, None]
