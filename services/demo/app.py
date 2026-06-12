@@ -57,7 +57,21 @@ if skipped:
     st.image(before_img, use_container_width=True)
 elif fallback:
     st.warning("Улучшение не дало выигрыша по качеству, оставили оригинал.")
-    st.image(before_img, use_container_width=True)
+    forced = requests.post(
+        f"{ENHANCER_URL}/enhance",
+        files={"image": (uploaded.name, raw, uploaded.type or "image/jpeg")},
+        data={"params": json.dumps({"force": True})},
+        timeout=120,
+    )
+    disp_scale = min(1.0, DISPLAY_MAX / before_img.width)
+    before_w = max(1, round(before_img.width * disp_scale))
+    clickable_image("Оригинал (его и вернули)", raw, uploaded.type or "image/jpeg", before_w)
+    if forced.status_code == 200:
+        forced_after = Image.open(io.BytesIO(forced.content)).convert("RGB")
+        after_w = max(1, round(forced_after.width * disp_scale))
+        clickable_image(
+            "Результат улучшения (не прошёл гейт качества)", forced.content, "image/jpeg", after_w
+        )
 else:
     disp_scale = min(1.0, DISPLAY_MAX / after_img.width)
     before_mime = uploaded.type or "image/jpeg"

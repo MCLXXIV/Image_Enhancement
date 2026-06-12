@@ -32,7 +32,7 @@ def _is_hdr_scene(image_bgr: np.ndarray) -> bool:
     return bright_ratio > HDR_BRIGHT_RATIO and float(lum.mean()) < HDR_MEAN_MAX
 
 
-WELL_EXP_SIGMA = 0.2
+WELL_EXP_SIGMA = 0.12
 FUSION_LEVELS = 6
 
 
