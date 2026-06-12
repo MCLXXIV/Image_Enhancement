@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     lowlight_n_feat: int = Field(default=40, alias="LOWLIGHT_N_FEAT")
     lowlight_stage: int = Field(default=1, alias="LOWLIGHT_STAGE")
     lowlight_num_blocks: str = Field(default="1,2,2", alias="LOWLIGHT_NUM_BLOCKS")
+    # Доля выхода модели в результате: 1.0 только модель, <1.0 подмешивает оригинал.
+    lowlight_strength: float = Field(default=0.8, alias="LOWLIGHT_STRENGTH")
 
     # --- IAT (exposure) ---
     exposure_weights_path: str | None = Field(default=None, alias="EXPOSURE_WEIGHTS_PATH")

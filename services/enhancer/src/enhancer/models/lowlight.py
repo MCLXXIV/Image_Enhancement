@@ -15,20 +15,44 @@ from enhancer.models.base import StageParams
 
 HIGHLIGHT_LO = 0.5
 HIGHLIGHT_HI = 0.9
+CHROMA_HEADROOM = 12.0
 
 
 def protect_highlights(
     original_bgr: np.ndarray, enhanced_bgr: np.ndarray, lo: float, hi: float
 ) -> np.ndarray:
-    """Светлые зоны берём из оригинала, тёмные из enhanced. Спасает окна/пересвет от OOD-цвета."""
-    lum = cv2.cvtColor(original_bgr, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255.0
+    """Яркость светлых зон и насыщенность держим от оригинала, гасит OOD оранжевые ореолы и края."""
+    orig = cv2.cvtColor(original_bgr, cv2.COLOR_BGR2YCrCb).astype(np.float32)
+    enh = cv2.cvtColor(enhanced_bgr, cv2.COLOR_BGR2YCrCb).astype(np.float32)
+
+    lum = orig[:, :, 0] / 255.0
     weight = np.clip((lum - lo) / (hi - lo), 0.0, 1.0)
     sigma = max(original_bgr.shape[:2]) * 0.008
     if sigma > 0:
         weight = cv2.GaussianBlur(weight, (0, 0), sigmaX=sigma)
-    weight = weight[:, :, None]
-    blended = original_bgr.astype(np.float32) * weight + enhanced_bgr.astype(np.float32) * (
-        1.0 - weight
+
+    y_out = orig[:, :, 0] * weight + enh[:, :, 0] * (1.0 - weight)
+
+    cr_o, cb_o = orig[:, :, 1] - 128.0, orig[:, :, 2] - 128.0
+    cr_e, cb_e = enh[:, :, 1] - 128.0, enh[:, :, 2] - 128.0
+    chroma_o = np.sqrt(cr_o * cr_o + cb_o * cb_o)
+    chroma_e = np.sqrt(cr_e * cr_e + cb_e * cb_e)
+    scale = np.minimum(1.0, (chroma_o + CHROMA_HEADROOM) / (chroma_e + 1e-6))
+    cr_out = cr_o * weight + cr_e * scale * (1.0 - weight) + 128.0
+    cb_out = cb_o * weight + cb_e * scale * (1.0 - weight) + 128.0
+
+    out = np.stack([y_out, cr_out, cb_out], axis=2).round().clip(0, 255).astype(np.uint8)
+    return cv2.cvtColor(out, cv2.COLOR_YCrCb2BGR)
+
+
+def blend_strength(
+    original_bgr: np.ndarray, enhanced_bgr: np.ndarray, strength: float
+) -> np.ndarray:
+    """Подмешивает оригинал к выходу модели, <1.0 возвращает родные тени и текстуру."""
+    if strength >= 1.0:
+        return enhanced_bgr
+    blended = enhanced_bgr.astype(np.float32) * strength + original_bgr.astype(np.float32) * (
+        1.0 - strength
     )
     return blended.round().clip(0, 255).astype(np.uint8)
 
@@ -45,10 +69,12 @@ class LowLightEnhancer:
         n_feat: int = 40,
         stage: int = 1,
         num_blocks: Sequence[int] = (1, 2, 2),
+        strength: float = 1.0,
     ) -> None:
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
         self._device = torch.device(device)
+        self._strength = float(np.clip(strength, 0.0, 1.0))
         self._level = 2
         self._model = RetinexFormer(
             in_channels=3, out_channels=3, n_feat=n_feat, stage=stage, num_blocks=list(num_blocks)
@@ -85,4 +111,5 @@ class LowLightEnhancer:
         out = self._model(tensor)
         out = out[:, :, :h, :w]
         enhanced = self._from_tensor(out)
-        return protect_highlights(image_bgr, enhanced, HIGHLIGHT_LO, HIGHLIGHT_HI)
+        protected = protect_highlights(image_bgr, enhanced, HIGHLIGHT_LO, HIGHLIGHT_HI)
+        return blend_strength(image_bgr, protected, self._strength)
