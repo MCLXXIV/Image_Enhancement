@@ -135,9 +135,6 @@ bash infra/deploy/bootstrap.sh   # один раз: docker + nvidia-container-to
 make install                     # venv + зависимости
 make weights                     # веса 3 моделей в data/weights/
 make up-gpu                      # стек на CUDA
-make logs-gpu                    # проверить: lowlight/restore/safmn .loaded
+make logs-gpu                    # логи
 ```
-
-Сервис: `http://localhost:8000` · демо: `http://localhost:8501`.
-Остановить — `make down-gpu`.
 

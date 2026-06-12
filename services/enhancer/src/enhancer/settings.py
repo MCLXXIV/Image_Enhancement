@@ -13,12 +13,11 @@ class Settings(BaseSettings):
     s3_endpoint_url: str = Field(default="http://minio:9000", alias="S3_ENDPOINT_URL")
 
     # --- Real-SAFMN++ (SR + restoration на мелких/низкоразрешённых фото) ---
-    safmn_weights_path: str | None = Field(default=None, alias="SAFMN_WEIGHTS_PATH")
-    safmn_scale: int = Field(default=4, alias="SAFMN_SCALE")
+    safmn_x2_weights_path: str | None = Field(default=None, alias="SAFMN_X2_WEIGHTS_PATH")
+    safmn_x4_weights_path: str | None = Field(default=None, alias="SAFMN_X4_WEIGHTS_PATH")
     safmn_device: str | None = Field(default=None, alias="SAFMN_DEVICE")
     safmn_tile: int = Field(default=256, alias="SAFMN_TILE")
     safmn_fp16: bool = Field(default=False, alias="SAFMN_FP16")
-    # Конфиг архитектуры под конкретный чекпоинт (strict load): L=128, AIM2025=96.
     safmn_dim: int = Field(default=128, alias="SAFMN_DIM")
     safmn_n_blocks: int = Field(default=16, alias="SAFMN_N_BLOCKS")
     safmn_ffn_scale: float = Field(default=2.0, alias="SAFMN_FFN_SCALE")
@@ -42,6 +41,7 @@ class Settings(BaseSettings):
     # --- Роутер: пороги размеров ---
     low_res_max_side: int = Field(default=1280, alias="LOW_RES_MAX_SIDE")
     sr_input_max_side: int = Field(default=2048, alias="SR_INPUT_MAX_SIDE")
+    sr_target_long_side: int = Field(default=1920, alias="SR_TARGET_LONG_SIDE")
 
     # --- IQA-verify (really improved?) ---
     iqa_device: str | None = Field(default=None, alias="IQA_DEVICE")

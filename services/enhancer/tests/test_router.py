@@ -33,6 +33,12 @@ def test_large_blurry_routes_to_restore_not_safmn(blurry_image: np.ndarray) -> N
     assert Stage.SAFMN not in decision.stages  # большое фото не апскейлим
 
 
+def test_large_blurry_without_restore_does_not_upscale(blurry_image: np.ndarray) -> None:
+    big = cv2.resize(blurry_image, (1400, 1400))
+    decision = route(compute_metrics(big), 1400, 1400, {Stage.SAFMN})
+    assert Stage.SAFMN not in decision.stages
+
+
 def test_large_neutral_image_skipped(neutral_image: np.ndarray) -> None:
     big = cv2.resize(neutral_image, (1400, 1400), interpolation=cv2.INTER_NEAREST)
     decision = route(compute_metrics(big), 1400, 1400, ALL_STAGES)

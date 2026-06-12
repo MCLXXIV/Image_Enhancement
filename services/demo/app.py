@@ -41,14 +41,32 @@ fallback = response.headers.get("X-Enhance-Fallback") == "true"
 scale = float(response.headers.get("X-Enhance-Scale-Factor", "1.0"))
 latency = float(response.headers.get("X-Enhance-Latency-Ms", "0"))
 
+SLIDER_WIDTH = 700
+
+
+def _fit(img: Image.Image, width: int) -> Image.Image:
+    if img.width <= width:
+        return img
+    height = round(img.height * width / img.width)
+    return img.resize((width, height))
+
+
 if skipped:
     st.success("Фото уже хорошего качества, улучшение не требуется.")
+    st.image(before_img, use_container_width=True)
 elif fallback:
     st.warning("Улучшение не дало выигрыша по качеству, оставили оригинал.")
+    st.image(before_img, use_container_width=True)
 else:
-    # Для честного слайдера приводим «до» к размеру «после».
-    before_for_slider = before_img.resize(after_img.size)
-    image_comparison(img1=before_for_slider, img2=after_img, label1="До", label2="После")
+    after_small = _fit(after_img, SLIDER_WIDTH)
+    before_small = _fit(before_img, SLIDER_WIDTH).resize(after_small.size)
+    image_comparison(
+        img1=before_small,
+        img2=after_small,
+        label1="До",
+        label2="После",
+        width=after_small.width,
+    )
     st.caption(f"Применено: {applied} · масштаб ×{scale:.1f} · {latency:.0f} мс")
     st.download_button(
         "Скачать улучшенное фото",

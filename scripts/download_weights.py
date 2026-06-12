@@ -1,7 +1,7 @@
 """Скачать веса трёх ML-моделей пайплайна в data/weights/.
 
 Модели:
-  - Real-SAFMN++ (SR + restoration): SAFMN_L_Real_LSDIR_x4.pth (HuggingFace, dim=128)
+  - Real-SAFMN++ (SR + restoration): SAFMN_L_Real_LSDIR_x2.pth и _x4.pth (HuggingFace, dim=128)
   - Retinexformer (low-light): LOL_v2_real.pth (Google Drive, gdown)
   - SCUNet (restoration scale=1): scunet_color_real_psnr.pth (config=4x7, dim=64)
 
@@ -17,11 +17,17 @@ from pathlib import Path
 
 # kind: "url" для прямого скачивания, "gdrive" для gdown по file id.
 WEIGHTS: dict[str, dict[str, str]] = {
-    "safmn": {
+    "safmn_x2": {
+        "kind": "url",
+        "filename": "SAFMN_L_Real_LSDIR_x2.pth",
+        "src": "https://huggingface.co/Meloo/SAFMN/resolve/main/SAFMN_L_Real_LSDIR_x2.pth",
+        "env": "SAFMN_X2_WEIGHTS_PATH",
+    },
+    "safmn_x4": {
         "kind": "url",
         "filename": "SAFMN_L_Real_LSDIR_x4.pth",
         "src": "https://huggingface.co/Meloo/SAFMN/resolve/main/SAFMN_L_Real_LSDIR_x4.pth",
-        "env": "SAFMN_WEIGHTS_PATH",
+        "env": "SAFMN_X4_WEIGHTS_PATH",
     },
     "lowlight": {
         "kind": "gdrive",

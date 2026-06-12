@@ -81,7 +81,5 @@ def route(
         stages.append(Stage.SAFMN)
     elif is_blurry and Stage.RESTORE in available:
         stages.append(Stage.RESTORE)
-    elif is_blurry and Stage.SAFMN in available and not is_low_res:
-        stages.append(Stage.SAFMN)
 
     return RouteDecision(tags=tags, stages=stages, skip=len(stages) == 0)
