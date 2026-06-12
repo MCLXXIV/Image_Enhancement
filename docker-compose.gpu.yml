@@ -11,6 +11,7 @@ services:
       SAFMN_FP16: "true"
       SAFMN_TILE: ${SAFMN_TILE:-512}
       LOWLIGHT_DEVICE: cuda
+      EXPOSURE_DEVICE: cuda
       RESTORE_DEVICE: cuda
       IQA_DEVICE: cuda
       NVIDIA_VISIBLE_DEVICES: all

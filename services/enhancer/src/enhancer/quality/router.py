@@ -20,9 +20,10 @@ class Tag(StrEnum):
 
 
 class Stage(StrEnum):
-    LOW_LIGHT = "low_light"  # Retinexformer: экспозиция/тон
-    RESTORE = "restore"  # SCUNet: шум/JPEG/блюр без апскейла
-    SAFMN = "safmn"  # Real-SAFMN++: SR + restoration на мелких фото
+    LOW_LIGHT = "low_light"
+    EXPOSURE = "exposure"
+    RESTORE = "restore"
+    SAFMN = "safmn"
 
 
 class RouteDecision(BaseModel):
@@ -37,6 +38,7 @@ CONTRAST_LOW = 0.12
 SHARPNESS_LOW = 60.0
 UNDEREXPOSED_LOW = 0.20
 OVEREXPOSED_HIGH = 0.10
+HIGHLIGHT_PRESENT = 0.01
 CHANNEL_IMBALANCE_HIGH = 0.12
 
 
@@ -65,8 +67,14 @@ def route(
         tags.append(Tag.COLOR_CAST)
 
     needs_tone = (is_dark or is_low_contrast) and not is_overexposed
-    if needs_tone and Stage.LOW_LIGHT in available:
-        stages.append(Stage.LOW_LIGHT)
+    has_highlights = m.overexposed_ratio > HIGHLIGHT_PRESENT
+    if is_overexposed and Stage.EXPOSURE in available:
+        stages.append(Stage.EXPOSURE)
+    elif needs_tone:
+        if has_highlights and Stage.EXPOSURE in available:
+            stages.append(Stage.EXPOSURE)
+        if Stage.LOW_LIGHT in available:
+            stages.append(Stage.LOW_LIGHT)
 
     is_blurry = m.sharpness_laplacian_var < SHARPNESS_LOW
     max_side = max(width or 0, height or 0)

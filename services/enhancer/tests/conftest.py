@@ -43,6 +43,11 @@ def dark_image(neutral_image: np.ndarray) -> np.ndarray:
 
 
 @pytest.fixture
+def overexposed_image(neutral_image: np.ndarray) -> np.ndarray:
+    return (neutral_image.astype(np.float32) * 1.6 + 120).clip(0, 255).astype(np.uint8)
+
+
+@pytest.fixture
 def blurry_image(neutral_image: np.ndarray) -> np.ndarray:
     return cv2.GaussianBlur(neutral_image, ksize=(0, 0), sigmaX=4.0)
 

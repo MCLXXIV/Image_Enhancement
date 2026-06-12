@@ -17,7 +17,12 @@ from enhancer.quality.router import RouteDecision, Stage, route
 from enhancer.schemas import EnhanceParams
 
 # Порядок применения стадий: сначала тон, потом детали/апскейл.
-_STAGE_ORDER: dict[Stage, int] = {Stage.LOW_LIGHT: 0, Stage.RESTORE: 1, Stage.SAFMN: 1}
+_STAGE_ORDER: dict[Stage, int] = {
+    Stage.EXPOSURE: 0,
+    Stage.LOW_LIGHT: 1,
+    Stage.RESTORE: 2,
+    Stage.SAFMN: 2,
+}
 
 
 @dataclass
@@ -44,6 +49,7 @@ def _override_stages(
     stages = list(decision.stages)
     forced = {
         Stage.LOW_LIGHT: params.force_lowlight,
+        Stage.EXPOSURE: params.force_exposure,
         Stage.RESTORE: params.force_restore,
         Stage.SAFMN: params.force_safmn,
     }

@@ -1,3 +1,4 @@
+import base64
 import io
 import json
 import os
@@ -7,6 +8,17 @@ import streamlit as st
 from PIL import Image
 
 ENHANCER_URL = os.environ.get("ENHANCER_URL", "http://enhancer:8000")
+DISPLAY_MAX = 720
+
+
+def clickable_image(label: str, data: bytes, mime: str, display_width: int) -> None:
+    uri = f"data:{mime};base64,{base64.b64encode(data).decode()}"
+    st.caption(label)
+    st.markdown(
+        f'<a href="{uri}" target="_blank">'
+        f'<img src="{uri}" width="{display_width}" style="cursor: zoom-in"/></a>',
+        unsafe_allow_html=True,
+    )
 
 st.set_page_config(page_title="Автоулучшение фото", layout="centered")
 st.title("Автоулучшение фото")
@@ -47,12 +59,13 @@ elif fallback:
     st.warning("Улучшение не дало выигрыша по качеству, оставили оригинал.")
     st.image(before_img, use_container_width=True)
 else:
-    left, right = st.columns(2)
-    left.caption("До")
-    left.image(before_img, use_container_width=True)
-    right.caption("После")
-    right.image(after_img, use_container_width=True)
-    st.caption(f"Применено: {applied} · масштаб ×{scale:.1f} · {latency:.0f} мс")
+    disp_scale = min(1.0, DISPLAY_MAX / after_img.width)
+    before_mime = uploaded.type or "image/jpeg"
+    before_w = max(1, round(before_img.width * disp_scale))
+    after_w = max(1, round(after_img.width * disp_scale))
+    clickable_image("До", raw, before_mime, before_w)
+    clickable_image("После", response.content, "image/jpeg", after_w)
+    st.caption(f"Применено: {applied} · {latency:.0f} мс. Клик по фото открывает его в реальном размере.")
     st.download_button(
         "Скачать улучшенное фото",
         data=response.content,

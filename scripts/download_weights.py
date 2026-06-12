@@ -3,10 +3,8 @@
 Модели:
   - Real-SAFMN++ (SR + restoration): SAFMN_L_Real_LSDIR_x2.pth и _x4.pth (HuggingFace, dim=128)
   - Retinexformer (low-light): LOL_v2_real.pth (Google Drive, gdown)
+  - IAT (exposure): iat_exposure.pth (GitHub, ~417 КБ)
   - SCUNet (restoration scale=1): scunet_color_real_psnr.pth (config=4x7, dim=64)
-
-После скачивания печатает готовые значения env-переменных для сервиса.
-Для Retinexformer нужен пакет gdown (есть в зависимостях dev).
 """
 
 from __future__ import annotations
@@ -34,6 +32,12 @@ WEIGHTS: dict[str, dict[str, str]] = {
         "filename": "LOL_v2_real.pth",
         "src": "1tChRwTfqhs-A67QzG8a9Lrx7qKB3m89K",
         "env": "LOWLIGHT_WEIGHTS_PATH",
+    },
+    "exposure": {
+        "kind": "url",
+        "filename": "iat_exposure.pth",
+        "src": "https://raw.githubusercontent.com/cuiziteng/Illumination-Adaptive-Transformer/main/IAT_enhance/best_Epoch_exposure.pth",
+        "env": "EXPOSURE_WEIGHTS_PATH",
     },
     "restore": {
         "kind": "url",

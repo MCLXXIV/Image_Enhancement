@@ -44,6 +44,7 @@ target-version = "py311"
 extend-exclude = [
   "src/enhancer/models/_scunet_arch.py",
   "src/enhancer/models/_retinexformer_arch.py",
+  "src/enhancer/models/_iat_arch.py",
 ]
 
 [tool.ruff.lint]
@@ -61,7 +62,11 @@ ignore_missing_imports = true
 
 # Вендоренные 1:1 архитектуры — внешний код, mypy их не проверяет.
 [[tool.mypy.overrides]]
-module = ["enhancer.models._scunet_arch", "enhancer.models._retinexformer_arch"]
+module = [
+  "enhancer.models._scunet_arch",
+  "enhancer.models._retinexformer_arch",
+  "enhancer.models._iat_arch",
+]
 ignore_errors = true
 
 # Модельные обёртки вызывают нетипизированный torch (forward даёт Any). Ослабляем

@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     lowlight_stage: int = Field(default=1, alias="LOWLIGHT_STAGE")
     lowlight_num_blocks: str = Field(default="1,2,2", alias="LOWLIGHT_NUM_BLOCKS")
 
+    # --- IAT (exposure) ---
+    exposure_weights_path: str | None = Field(default=None, alias="EXPOSURE_WEIGHTS_PATH")
+    exposure_device: str | None = Field(default=None, alias="EXPOSURE_DEVICE")
+
     # --- SCUNet (restoration scale=1: шум / JPEG / лёгкий блюр на больших фото) ---
     restore_weights_path: str | None = Field(default=None, alias="RESTORE_WEIGHTS_PATH")
     restore_device: str | None = Field(default=None, alias="RESTORE_DEVICE")
