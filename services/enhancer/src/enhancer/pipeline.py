@@ -4,18 +4,28 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
 
 from enhancer.borders import crop_black_bars
 from enhancer.models.base import Enhancer, StageParams
-from enhancer.models.registry import build_default_stages
-from enhancer.observability import enhance_request_duration_seconds, enhance_requests_total, log
+from enhancer.models.registry import build_default_stages, build_photo_classifier
+from enhancer.observability import (
+    enhance_photo_type_total,
+    enhance_request_duration_seconds,
+    enhance_requests_total,
+    log,
+)
 from enhancer.quality.iqa import IqaScorer
-from enhancer.quality.metrics import QualityMetrics, compute_metrics
-from enhancer.quality.router import RouteDecision, Stage, route
+from enhancer.quality.metrics import QualityMetrics, compute_metrics, estimate_noise_sigma
+from enhancer.quality.router import PhotoType, RouteDecision, Stage, Tag, route
 from enhancer.schemas import EnhanceParams
+from enhancer.settings import settings
+
+if TYPE_CHECKING:
+    from enhancer.models.photo_type import PhotoTypeClassifier
 
 # Порядок применения стадий: сначала тон, потом детали/апскейл.
 _STAGE_ORDER: dict[Stage, int] = {
@@ -36,6 +46,7 @@ class EnhanceResult:
     metrics_after: QualityMetrics
     model_versions: dict[str, str]
     cropped: bool = False
+    photo_type: PhotoType = PhotoType.REAL_ESTATE
     stage_latency_ms: dict[str, float] = field(default_factory=dict)
     total_latency_ms: float = 0.0
     psnr_vs_input: float = 0.0
@@ -78,16 +89,39 @@ class Pipeline:
         self,
         stages: dict[Stage, Enhancer] | None = None,
         iqa: IqaScorer | None = None,
+        classifier: PhotoTypeClassifier | None = None,
     ) -> None:
         self.stages = stages if stages is not None else build_default_stages()
         self.iqa = iqa
+        self.classifier = classifier if classifier is not None else build_photo_classifier()
+
+    def _classify_and_crop(self, image_bgr: np.ndarray) -> tuple[PhotoType, bool, np.ndarray]:
+        """Тип фото + срез полос. Скриншот режем по чёрным полосам и переклассифицируем кадр.
+
+        Без классификатора падаем на старое поведение: всегда пытаемся срезать леттербокс,
+        тип остаётся real_estate (полный пайплайн).
+        """
+        if self.classifier is None:
+            cropped_bgr = crop_black_bars(image_bgr)
+            return PhotoType.REAL_ESTATE, cropped_bgr.shape != image_bgr.shape, cropped_bgr
+
+        photo_type = self.classifier.predict(image_bgr)
+        if photo_type != PhotoType.SCREENSHOT:
+            return photo_type, False, image_bgr
+
+        cropped_bgr = crop_black_bars(image_bgr)
+        cropped = cropped_bgr.shape != image_bgr.shape
+        photo_type = self.classifier.predict(cropped_bgr)
+        if photo_type == PhotoType.SCREENSHOT:
+            photo_type = PhotoType.REAL_ESTATE  # полосы уже срезаны, дальше как обычное фото
+        return photo_type, cropped, cropped_bgr
 
     def run(self, image_bgr: np.ndarray, params: EnhanceParams | None = None) -> EnhanceResult:
         params = params or EnhanceParams()
         total_t0 = time.perf_counter()
-        cropped_bgr = crop_black_bars(image_bgr)
-        cropped = cropped_bgr.shape != image_bgr.shape
-        image_bgr = cropped_bgr
+        with enhance_request_duration_seconds.labels(stage="classify").time():
+            photo_type, cropped, image_bgr = self._classify_and_crop(image_bgr)
+        enhance_photo_type_total.labels(type=photo_type.value).inc()
         available = set(self.stages.keys())
         h, w = image_bgr.shape[:2]
 
@@ -95,22 +129,32 @@ class Pipeline:
             metrics_before = compute_metrics(image_bgr)
 
         with enhance_request_duration_seconds.labels(stage="route").time():
-            decision = route(metrics_before, width=w, height=h, available_stages=available)
+            decision = route(
+                metrics_before, width=w, height=h, available_stages=available, photo_type=photo_type
+            )
 
         force = bool(params.force)
         stages_to_apply = _override_stages(decision, params, available)
         if not stages_to_apply:
-            return self._skipped_result(image_bgr, metrics_before, total_t0, cropped)
+            return self._skipped_result(image_bgr, metrics_before, total_t0, cropped, photo_type)
 
         stage_latency: dict[str, float] = {}
         current = image_bgr
+        applied: list[Stage] = []
         empty: StageParams = {}
         for stage in stages_to_apply:
+            if stage == Stage.RESTORE and not self._should_denoise(current, decision, force):
+                log.info("restore.skipped", reason="low_noise")
+                continue
             enhancer = self.stages[stage]
             t0 = time.perf_counter()
             with enhance_request_duration_seconds.labels(stage=stage.value).time():
                 current = enhancer.apply(current, empty)
             stage_latency[stage.value] = (time.perf_counter() - t0) * 1000
+            applied.append(stage)
+
+        if not applied:
+            return self._skipped_result(image_bgr, metrics_before, total_t0, cropped, photo_type)
 
         with enhance_request_duration_seconds.labels(stage="verify").time():
             metrics_after = compute_metrics(current)
@@ -132,13 +176,14 @@ class Pipeline:
 
         return EnhanceResult(
             image=current,
-            applied=stages_to_apply,
+            applied=applied,
             skipped=False,
             fallback=fallback,
             metrics_before=metrics_before,
             metrics_after=metrics_after,
-            model_versions=self._versions(stages_to_apply),
+            model_versions=self._versions(applied),
             cropped=cropped,
+            photo_type=photo_type,
             stage_latency_ms=stage_latency,
             total_latency_ms=total_ms,
             psnr_vs_input=psnr_input,
@@ -146,6 +191,13 @@ class Pipeline:
             iqa_before=iqa_before,
             iqa_after=iqa_after,
         )
+
+    def _should_denoise(self, image_bgr: np.ndarray, decision: RouteDecision, force: bool) -> bool:
+        """restore размытым нужен всегда; тёмным после low_light, только если поднялся шум."""
+        if force or Tag.BLURRY in decision.tags:
+            return True
+        gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+        return estimate_noise_sigma(gray) >= settings.restore_noise_min
 
     def _score_iqa(
         self, original: np.ndarray, current: np.ndarray
@@ -155,7 +207,12 @@ class Pipeline:
         return self.iqa.score(original), self.iqa.score(current)
 
     def _skipped_result(
-        self, image_bgr: np.ndarray, metrics: QualityMetrics, total_t0: float, cropped: bool = False
+        self,
+        image_bgr: np.ndarray,
+        metrics: QualityMetrics,
+        total_t0: float,
+        cropped: bool = False,
+        photo_type: PhotoType = PhotoType.REAL_ESTATE,
     ) -> EnhanceResult:
         total_ms = (time.perf_counter() - total_t0) * 1000
         enhance_request_duration_seconds.labels(stage="total").observe(total_ms / 1000)
@@ -169,6 +226,7 @@ class Pipeline:
             metrics_after=metrics,
             model_versions=self._versions([]),
             cropped=cropped,
+            photo_type=photo_type,
             total_latency_ms=total_ms,
             psnr_vs_input=100.0,
             scale_factor=1.0,

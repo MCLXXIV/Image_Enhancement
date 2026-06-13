@@ -37,6 +37,8 @@ services:
       RESTORE_CONFIG: ${RESTORE_CONFIG:-4,4,4,4,4,4,4}
       IQA_DEVICE: ${IQA_DEVICE:-cpu}
       IQA_GATE_ENABLED: ${IQA_GATE_ENABLED:-true}
+      PHOTO_CLASSIFIER_WEIGHTS_PATH: ${PHOTO_CLASSIFIER_WEIGHTS_PATH:-/weights/photo_type_classifier.pth}
+      PHOTO_CLASSIFIER_DEVICE: ${PHOTO_CLASSIFIER_DEVICE:-cpu}
     volumes:
       - ./data/weights:/weights:ro
     ports:

@@ -9,9 +9,6 @@ from pydantic import BaseModel
 UNDEREXPOSED_THRESHOLD = 0.10
 OVEREXPOSED_THRESHOLD = 0.95
 EXPOSURE_TARGET = 0.6
-NEAR_WHITE_THRESHOLD = 0.82
-MIDTONE_LO = 0.20
-MIDTONE_HI = 0.80
 
 
 class QualityMetrics(BaseModel):
@@ -27,8 +24,6 @@ class QualityMetrics(BaseModel):
     exposure_abs_error_to_target: float
     channel_imbalance: float
     noise_sigma: float
-    near_white_ratio: float
-    midtone_ratio: float
 
 
 def _to_gray_norm(image_bgr: np.ndarray) -> np.ndarray:
@@ -91,6 +86,4 @@ def compute_metrics(image_bgr: np.ndarray) -> QualityMetrics:
         exposure_abs_error_to_target=float(abs(brightness_mean - EXPOSURE_TARGET)),
         channel_imbalance=channel_imbalance,
         noise_sigma=estimate_noise_sigma(gray_uint8),
-        near_white_ratio=float((gray_norm > NEAR_WHITE_THRESHOLD).mean()),
-        midtone_ratio=float(((gray_norm > MIDTONE_LO) & (gray_norm < MIDTONE_HI)).mean()),
     )

@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     restore_dim: int = Field(default=64, alias="RESTORE_DIM")
     # Конфиг блоков SCUNet под real-чекпоинт scunet_color_real_psnr.pth (CSV).
     restore_config: str = Field(default="4,4,4,4,4,4,4", alias="RESTORE_CONFIG")
+    # Условный денойз: restore на не-размытых кадрах зовётся, только если noise_sigma >= порога.
+    restore_noise_min: float = Field(default=3.0, alias="RESTORE_NOISE_MIN")
 
     # Роутер: пороги размеров.
     low_res_max_side: int = Field(default=1280, alias="LOW_RES_MAX_SIDE")
@@ -59,6 +61,11 @@ class Settings(BaseSettings):
     # IQA-verify: проверка, что результат действительно лучше.
     iqa_device: str | None = Field(default=None, alias="IQA_DEVICE")
     iqa_gate_enabled: bool = Field(default=True, alias="IQA_GATE_ENABLED")
+
+    photo_classifier_weights_path: str | None = Field(
+        default=None, alias="PHOTO_CLASSIFIER_WEIGHTS_PATH"
+    )
+    photo_classifier_device: str | None = Field(default=None, alias="PHOTO_CLASSIFIER_DEVICE")
 
 
 settings = Settings()

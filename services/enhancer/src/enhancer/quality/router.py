@@ -17,7 +17,15 @@ class Tag(StrEnum):
     COLOR_CAST = "color_cast"
     BLURRY = "blurry"
     LOW_RES = "low_res"
-    DOCUMENT = "document"
+    FLOOR_PLAN = "floor_plan"
+
+
+class PhotoType(StrEnum):
+    """Тип фото от классификатора, задаёт ветку роутинга."""
+
+    REAL_ESTATE = "real_estate"
+    FLOOR_PLAN = "floor_plan"
+    SCREENSHOT = "screenshot"
 
 
 class Stage(StrEnum):
@@ -41,32 +49,27 @@ UNDEREXPOSED_LOW = 0.20
 OVEREXPOSED_HIGH = 0.10
 CHANNEL_IMBALANCE_HIGH = 0.12
 
-# Документ/чертёж (план квартиры): белый фон + тонкие линии, почти grayscale, без средних тонов.
-# Тон таким не правим (IAT/Retinexformer только испортят рисунок), апскейл/денойз можно.
-DOC_NEAR_WHITE_MIN = 0.6
-DOC_SATURATION_MAX = 0.05
-DOC_MIDTONE_MAX = 0.12
-
 
 def route(
     m: QualityMetrics,
     width: int | None = None,
     height: int | None = None,
     available_stages: set[Stage] | None = None,
+    photo_type: PhotoType = PhotoType.REAL_ESTATE,
 ) -> RouteDecision:
-    """Выбирает модели по метрикам. Порядок стадий: сначала тон, потом детали и апскейл."""
+    """Выбирает модели по метрикам и типу фото. Порядок стадий: сначала тон, потом детали и апскейл.
+
+    План (FLOOR_PLAN) получает только апскейл/денойз, тон ему не правим (IAT/Retinexformer
+    испортят чертёж). SCREENSHOT сюда не доходит: pipeline режет полосы и переклассифицирует кадр.
+    """
     available = available_stages or set()
     tags: list[Tag] = []
     stages: list[Stage] = []
+    skip_tone = photo_type == PhotoType.FLOOR_PLAN
 
     is_dark = m.brightness_mean < BRIGHTNESS_LOW or m.underexposed_ratio > UNDEREXPOSED_LOW
     is_low_contrast = m.contrast_std < CONTRAST_LOW
     is_overexposed = m.brightness_mean > BRIGHTNESS_HIGH or m.overexposed_ratio > OVEREXPOSED_HIGH
-    is_document = (
-        m.near_white_ratio > DOC_NEAR_WHITE_MIN
-        and m.saturation_mean < DOC_SATURATION_MAX
-        and m.midtone_ratio < DOC_MIDTONE_MAX
-    )
 
     if is_dark:
         tags.append(Tag.LOW_LIGHT)
@@ -76,13 +79,13 @@ def route(
         tags.append(Tag.OVEREXPOSED)
     if m.channel_imbalance > CHANNEL_IMBALANCE_HIGH:
         tags.append(Tag.COLOR_CAST)
-    if is_document:
-        tags.append(Tag.DOCUMENT)
+    if skip_tone:
+        tags.append(Tag.FLOOR_PLAN)
 
     is_washed_out = m.brightness_mean > BRIGHTNESS_HIGH
     needs_tone = (is_dark or is_low_contrast) and not is_washed_out
-    if is_document:
-        pass  # документу тон не правим, апскейл/денойз ниже остаются доступны
+    if skip_tone:
+        pass  # плану тон не правим, апскейл/денойз ниже остаются доступны
     elif is_washed_out and Stage.EXPOSURE in available:
         stages.append(Stage.EXPOSURE)
     elif needs_tone and Stage.LOW_LIGHT in available:
@@ -99,7 +102,7 @@ def route(
 
     # Тёмный кадр после осветления (low_light) всегда поднимает шум из теней, его чистит SCUNet.
     # SAFMN на мелких кадрах денойзит сам, поэтому restore нужен только крупным тёмным/размытым.
-    needs_restore = is_blurry or is_dark
+    needs_restore = is_blurry or (is_dark and not skip_tone)
     if is_low_res and Stage.SAFMN in available:
         stages.append(Stage.SAFMN)
     elif needs_restore and Stage.RESTORE in available:

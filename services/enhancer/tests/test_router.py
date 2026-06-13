@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 from enhancer.quality.metrics import compute_metrics
-from enhancer.quality.router import Stage, Tag, route
+from enhancer.quality.router import PhotoType, Stage, Tag, route
 
 ALL_STAGES = {Stage.LOW_LIGHT, Stage.EXPOSURE, Stage.RESTORE, Stage.SAFMN}
 
@@ -62,12 +62,22 @@ def test_large_blurry_without_restore_does_not_upscale(blurry_image: np.ndarray)
     assert Stage.SAFMN not in decision.stages
 
 
-def test_document_suppresses_tone_keeps_upscale(document_image: np.ndarray) -> None:
-    decision = route(compute_metrics(document_image), 256, 256, ALL_STAGES)
-    assert Tag.DOCUMENT in decision.tags
-    assert Stage.EXPOSURE not in decision.stages  # IAT не затемняет чертёж
+def test_floor_plan_suppresses_tone_keeps_upscale(dark_image: np.ndarray) -> None:
+    # Тип плана приходит от классификатора: тон не правим, апскейл/денойз остаются.
+    decision = route(
+        compute_metrics(dark_image), 256, 256, ALL_STAGES, photo_type=PhotoType.FLOOR_PLAN
+    )
+    assert Tag.FLOOR_PLAN in decision.tags
+    assert Stage.EXPOSURE not in decision.stages
     assert Stage.LOW_LIGHT not in decision.stages
-    assert Stage.SAFMN in decision.stages  # апскейл документу разрешён
+    assert Stage.SAFMN in decision.stages  # апскейл плану разрешён
+
+
+def test_real_estate_dark_still_gets_tone(dark_image: np.ndarray) -> None:
+    decision = route(
+        compute_metrics(dark_image), 256, 256, ALL_STAGES, photo_type=PhotoType.REAL_ESTATE
+    )
+    assert Stage.LOW_LIGHT in decision.stages
 
 
 def test_large_neutral_image_skipped(neutral_image: np.ndarray) -> None:

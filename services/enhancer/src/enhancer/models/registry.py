@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from enhancer.models.base import Enhancer
 from enhancer.observability import log
 from enhancer.quality.router import Stage
 from enhancer.settings import settings
+
+if TYPE_CHECKING:
+    from enhancer.models.photo_type import PhotoTypeClassifier
 
 
 def _try_build_safmn() -> Enhancer | None:
@@ -121,6 +125,30 @@ def _try_build_restore() -> Enhancer | None:
         return stage
     except Exception as exc:
         log.exception("restore.load_failed", error=str(exc))
+        return None
+
+
+def build_photo_classifier() -> PhotoTypeClassifier | None:
+    """Классификатор типа фото. None если веса не заданы/отсутствуют (тогда тип = real_estate)."""
+    if not settings.photo_classifier_weights_path:
+        log.info("photo_classifier.not_configured", hint="set PHOTO_CLASSIFIER_WEIGHTS_PATH")
+        return None
+    weights = Path(settings.photo_classifier_weights_path)
+    if not weights.is_file():
+        log.warning("photo_classifier.weights_missing", path=str(weights))
+        return None
+    try:
+        from enhancer.models.photo_type import PhotoTypeClassifier
+
+        clf = PhotoTypeClassifier(weights_path=weights, device=settings.photo_classifier_device)
+        log.info(
+            "photo_classifier.loaded",
+            weights=str(weights),
+            classes=[c.value for c in clf.classes],
+        )
+        return clf
+    except Exception as exc:
+        log.exception("photo_classifier.load_failed", error=str(exc))
         return None
 
 

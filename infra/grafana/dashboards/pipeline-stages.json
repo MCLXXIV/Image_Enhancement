@@ -67,6 +67,38 @@
           "refId": "B"
         }
       ]
+    },
+    {
+      "id": 5,
+      "type": "piechart",
+      "title": "Photo type distribution",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 28 },
+      "targets": [
+        {
+          "expr": "sum by (type) (increase(enhance_photo_type_total[$__range]))",
+          "legendFormat": "{{type}}",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "values": false },
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Photo type rate (req/s)",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 28 },
+      "targets": [
+        {
+          "expr": "sum by (type) (rate(enhance_photo_type_total[5m]))",
+          "legendFormat": "{{type}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
     }
   ]
 }

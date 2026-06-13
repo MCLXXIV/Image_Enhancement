@@ -38,6 +38,12 @@ enhance_requests_total = Counter(
     labelnames=("outcome",),
 )
 
+enhance_photo_type_total = Counter(
+    "enhance_photo_type_total",
+    "Total enhance requests by detected photo type",
+    labelnames=("type",),
+)
+
 enhance_request_duration_seconds = Histogram(
     "enhance_request_duration_seconds",
     "Enhance request duration by pipeline stage",

@@ -61,17 +61,6 @@ def color_cast_image(neutral_image: np.ndarray) -> np.ndarray:
 
 
 @pytest.fixture
-def document_image() -> np.ndarray:
-    """Чертёж: белый фон с тонкими тёмными линиями, как план квартиры."""
-    img = np.full((256, 256, 3), 250, dtype=np.uint8)
-    img[40:200, 40] = 30
-    img[40:200, 200] = 30
-    img[40, 40:201] = 30
-    img[200, 40:201] = 30
-    return img
-
-
-@pytest.fixture
 def letterboxed_image(neutral_image: np.ndarray) -> np.ndarray:
     """neutral_image с чёрными полосами сверху и снизу."""
     h, w = neutral_image.shape[:2]

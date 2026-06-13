@@ -10,7 +10,7 @@ WEIGHTS_DIR := data/weights
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install test lint fmt full-check up up-infra up-gpu down down-gpu logs logs-gpu clean weights data demo enhance-curl load-test
+.PHONY: help install test lint fmt full-check up up-infra up-gpu down down-gpu logs logs-gpu clean weights data find-bars demo enhance-curl load-test
 
 GPU_COMPOSE := docker compose -f docker-compose.yml -f docker-compose.gpu.yml
 
@@ -27,6 +27,7 @@ help:
 	@echo "Веса и данные:"
 	@echo "  weights      скачать веса 3 моделей (SAFMN++/Retinexformer/SCUNet) в $(WEIGHTS_DIR)"
 	@echo "  data         скачать Kaggle-датасет недвиги в data/"
+	@echo "  find-bars    эвристикой найти фото с чёрными полосами -> CSV + HTML для ручной разметки screenshot"
 	@echo ""
 	@echo "Стек (docker compose):"
 	@echo "  up           docker compose up -d --build (весь стек, CPU torch)"
@@ -69,6 +70,9 @@ weights:
 
 data:
 	$(PY) scripts/download_kaggle_dataset.py
+
+find-bars:
+	$(PY) scripts/find_black_bars.py $(if $(IMAGES_DIR),--images-dir $(IMAGES_DIR),) $(if $(LIMIT),--limit $(LIMIT),)
 
 up:
 	docker compose up -d --build

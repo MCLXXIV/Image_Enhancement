@@ -31,6 +31,11 @@ def _warmup(pipeline: Pipeline) -> None:
             log.warning("warmup.failed", stage=stage.value, error=str(exc))
     if pipeline.iqa is not None and pipeline.iqa.available:
         pipeline.iqa.score(dummy)
+    if pipeline.classifier is not None:
+        try:
+            pipeline.classifier.predict(dummy)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("warmup.failed", stage="photo_type", error=str(exc))
 
 
 @asynccontextmanager
@@ -41,6 +46,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.pipeline = pipeline
     for stage, enhancer in pipeline.stages.items():
         enhance_model_info.labels(stage=stage.value, version=enhancer.version).set(1)
+    if pipeline.classifier is not None:
+        enhance_model_info.labels(
+            stage=pipeline.classifier.name, version=pipeline.classifier.version
+        ).set(1)
     _warmup(pipeline)
     log.info("enhancer.startup", version=__version__, stages=[s.value for s in pipeline.stages])
     yield

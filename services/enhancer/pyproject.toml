@@ -28,6 +28,7 @@ dev = [
   "ruff>=0.8",
   "mypy>=1.13",
   "gdown>=5.0",
+  "kagglehub>=0.3",
 ]
 
 [build-system]

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import io
 import json
 
 import cv2
 import numpy as np
 from fastapi import HTTPException
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from enhancer.observability import (
     enhance_iqa_after,
@@ -28,11 +30,17 @@ JPEG_QUALITY = 92
 
 
 def decode_image(raw: bytes) -> np.ndarray:
-    arr = np.frombuffer(raw, dtype=np.uint8)
-    image = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-    if image is None:
-        raise HTTPException(status_code=400, detail="cannot decode image")
-    return image
+    """Декод в BGR uint8 с учётом EXIF-ориентации (cv2.imdecode её игнорирует)."""
+    try:
+        with Image.open(io.BytesIO(raw)) as pil:
+            rgb = np.asarray(ImageOps.exif_transpose(pil).convert("RGB"))
+        return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+    except (UnidentifiedImageError, OSError, ValueError):
+        arr = np.frombuffer(raw, dtype=np.uint8)
+        image = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if image is None:
+            raise HTTPException(status_code=400, detail="cannot decode image") from None
+        return image
 
 
 def encode_jpeg(image_bgr: np.ndarray, quality: int = JPEG_QUALITY) -> bytes:
@@ -48,6 +56,7 @@ def build_headers(result: EnhanceResult) -> dict[str, str]:
         "X-Enhance-Skipped": "true" if result.skipped else "false",
         "X-Enhance-Fallback": "true" if result.fallback else "false",
         "X-Enhance-Cropped": "true" if result.cropped else "false",
+        "X-Enhance-Photo-Type": result.photo_type.value,
         "X-Enhance-Latency-Ms": f"{result.total_latency_ms:.1f}",
         "X-Enhance-Psnr-Vs-Input": f"{result.psnr_vs_input:.2f}",
         "X-Enhance-Scale-Factor": f"{result.scale_factor:.2f}",
