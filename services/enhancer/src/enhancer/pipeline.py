@@ -19,10 +19,9 @@ from enhancer.observability import (
     log,
 )
 from enhancer.quality.iqa import IqaScorer
-from enhancer.quality.metrics import QualityMetrics, compute_metrics, estimate_noise_sigma
-from enhancer.quality.router import PhotoType, RouteDecision, Stage, Tag, route
+from enhancer.quality.metrics import QualityMetrics, compute_metrics
+from enhancer.quality.router import PhotoType, RouteDecision, Stage, route
 from enhancer.schemas import EnhanceParams
-from enhancer.settings import settings
 
 if TYPE_CHECKING:
     from enhancer.models.photo_type import PhotoTypeClassifier
@@ -143,18 +142,12 @@ class Pipeline:
         applied: list[Stage] = []
         empty: StageParams = {}
         for stage in stages_to_apply:
-            if stage == Stage.RESTORE and not self._should_denoise(current, decision, force):
-                log.info("restore.skipped", reason="low_noise")
-                continue
             enhancer = self.stages[stage]
             t0 = time.perf_counter()
             with enhance_request_duration_seconds.labels(stage=stage.value).time():
                 current = enhancer.apply(current, empty)
             stage_latency[stage.value] = (time.perf_counter() - t0) * 1000
             applied.append(stage)
-
-        if not applied:
-            return self._skipped_result(image_bgr, metrics_before, total_t0, cropped, photo_type)
 
         with enhance_request_duration_seconds.labels(stage="verify").time():
             metrics_after = compute_metrics(current)
@@ -191,13 +184,6 @@ class Pipeline:
             iqa_before=iqa_before,
             iqa_after=iqa_after,
         )
-
-    def _should_denoise(self, image_bgr: np.ndarray, decision: RouteDecision, force: bool) -> bool:
-        """restore размытым нужен всегда; тёмным после low_light, только если поднялся шум."""
-        if force or Tag.BLURRY in decision.tags:
-            return True
-        gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
-        return estimate_noise_sigma(gray) >= settings.restore_noise_min
 
     def _score_iqa(
         self, original: np.ndarray, current: np.ndarray
