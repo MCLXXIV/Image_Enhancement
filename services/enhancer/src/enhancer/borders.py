@@ -4,36 +4,42 @@ from __future__ import annotations
 
 import numpy as np
 
-BLACK_LEVEL = 16
-BLACK_LINE_FRAC = 0.97
-MAX_CROP_FRAC = 0.4
+BLACK_MEDIAN = 4
+MIN_KEEP_FRAC = 0.2
 
 
-def _leading_black(mask: np.ndarray) -> int:
-    """Сколько подряд чёрных линий от начала массива."""
-    if mask.all():
-        return len(mask)
-    return int(np.argmax(~mask))
+def _content_bounds(is_bar: np.ndarray) -> tuple[int, int]:
+    """Границы [start, end) самого длинного непрерывного блока контента (не-полос).
+
+    Если такой блок короче MIN_KEEP_FRAC стороны, по этой оси полос нет, возвращаем всю сторону
+    (иначе единичная не-чёрная строка/столбец схлопнул бы кадр).
+    """
+    n = len(is_bar)
+    best_len, best = 0, (0, n)
+    i = 0
+    while i < n:
+        if is_bar[i]:
+            i += 1
+            continue
+        j = i
+        while j < n and not is_bar[j]:
+            j += 1
+        if j - i > best_len:
+            best_len, best = j - i, (i, j)
+        i = j
+    return best if best_len >= n * MIN_KEEP_FRAC else (0, n)
 
 
 def crop_black_bars(image_bgr: np.ndarray) -> np.ndarray:
-    """Срезает сплошные почти-чёрные полосы у краёв; яркость берём по максимуму каналов."""
+    """Срезает чёрный леттербокс вокруг фото, оставляя самый крупный блок контента.
+
+    Полоса определяется по медиане яркости строки/столбца (UI-текст на чёрном разрежён и
+    медиану не поднимает), поэтому статус-бары и кнопки навигации скриншота уходят вместе с полосой.
+    """
     lum = image_bgr.max(axis=2)
     h, w = lum.shape
-    black = lum < BLACK_LEVEL
-    black_row = black.mean(axis=1) >= BLACK_LINE_FRAC
-    black_col = black.mean(axis=0) >= BLACK_LINE_FRAC
-
-    cap_v = int(h * MAX_CROP_FRAC)
-    cap_h = int(w * MAX_CROP_FRAC)
-    top = min(_leading_black(black_row), cap_v)
-    bottom = min(_leading_black(black_row[::-1]), cap_v)
-    left = min(_leading_black(black_col), cap_h)
-    right = min(_leading_black(black_col[::-1]), cap_h)
-
-    if not (top or bottom or left or right):
-        return image_bgr
-    y0, y1, x0, x1 = top, h - bottom, left, w - right
-    if y1 - y0 < 1 or x1 - x0 < 1:
+    y0, y1 = _content_bounds(np.median(lum, axis=1) <= BLACK_MEDIAN)
+    x0, x1 = _content_bounds(np.median(lum, axis=0) <= BLACK_MEDIAN)
+    if (y0, y1) == (0, h) and (x0, x1) == (0, w):
         return image_bgr
     return image_bgr[y0:y1, x0:x1]

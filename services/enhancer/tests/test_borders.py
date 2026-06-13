@@ -8,12 +8,26 @@ def test_crop_removes_letterbox(letterboxed_image: np.ndarray, neutral_image: np
     assert cropped.shape == neutral_image.shape
 
 
+def test_ui_text_in_bar_still_cropped(
+    letterboxed_image: np.ndarray, neutral_image: np.ndarray
+) -> None:
+    # Разреженный яркий UI (статус-бар) в чёрной полосе не должен мешать срезу: медиана строки ~0.
+    framed = letterboxed_image.copy()
+    framed[10, 20:40] = 255
+    cropped = crop_black_bars(framed)
+    assert cropped.shape == neutral_image.shape
+
+
 def test_no_crop_on_clean_image(neutral_image: np.ndarray) -> None:
-    out = crop_black_bars(neutral_image)
-    assert out.shape == neutral_image.shape
+    assert crop_black_bars(neutral_image).shape == neutral_image.shape
 
 
-def test_all_black_capped_at_max_frac() -> None:
+def test_dark_content_not_cropped() -> None:
+    # Равномерно тёмный кадр (ночное фото) ярче чистого чёрного, полос нет, не режем.
+    dim = np.full((200, 200, 3), 30, dtype=np.uint8)
+    assert crop_black_bars(dim).shape == dim.shape
+
+
+def test_all_black_returns_original() -> None:
     img = np.zeros((100, 100, 3), dtype=np.uint8)
-    out = crop_black_bars(img)
-    assert out.shape[0] >= 1 and out.shape[1] >= 1
+    assert crop_black_bars(img).shape == img.shape
