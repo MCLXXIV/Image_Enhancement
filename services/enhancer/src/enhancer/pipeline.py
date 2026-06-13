@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 import cv2
 import numpy as np
 
+from enhancer.borders import crop_black_bars
 from enhancer.models.base import Enhancer, StageParams
 from enhancer.models.registry import build_default_stages
 from enhancer.observability import enhance_request_duration_seconds, enhance_requests_total, log
@@ -34,6 +35,7 @@ class EnhanceResult:
     metrics_before: QualityMetrics
     metrics_after: QualityMetrics
     model_versions: dict[str, str]
+    cropped: bool = False
     stage_latency_ms: dict[str, float] = field(default_factory=dict)
     total_latency_ms: float = 0.0
     psnr_vs_input: float = 0.0
@@ -83,6 +85,9 @@ class Pipeline:
     def run(self, image_bgr: np.ndarray, params: EnhanceParams | None = None) -> EnhanceResult:
         params = params or EnhanceParams()
         total_t0 = time.perf_counter()
+        cropped_bgr = crop_black_bars(image_bgr)
+        cropped = cropped_bgr.shape != image_bgr.shape
+        image_bgr = cropped_bgr
         available = set(self.stages.keys())
         h, w = image_bgr.shape[:2]
 
@@ -95,7 +100,7 @@ class Pipeline:
         force = bool(params.force)
         stages_to_apply = _override_stages(decision, params, available)
         if not stages_to_apply:
-            return self._skipped_result(image_bgr, metrics_before, total_t0)
+            return self._skipped_result(image_bgr, metrics_before, total_t0, cropped)
 
         stage_latency: dict[str, float] = {}
         current = image_bgr
@@ -133,6 +138,7 @@ class Pipeline:
             metrics_before=metrics_before,
             metrics_after=metrics_after,
             model_versions=self._versions(stages_to_apply),
+            cropped=cropped,
             stage_latency_ms=stage_latency,
             total_latency_ms=total_ms,
             psnr_vs_input=psnr_input,
@@ -149,7 +155,7 @@ class Pipeline:
         return self.iqa.score(original), self.iqa.score(current)
 
     def _skipped_result(
-        self, image_bgr: np.ndarray, metrics: QualityMetrics, total_t0: float
+        self, image_bgr: np.ndarray, metrics: QualityMetrics, total_t0: float, cropped: bool = False
     ) -> EnhanceResult:
         total_ms = (time.perf_counter() - total_t0) * 1000
         enhance_request_duration_seconds.labels(stage="total").observe(total_ms / 1000)
@@ -162,6 +168,7 @@ class Pipeline:
             metrics_before=metrics,
             metrics_after=metrics,
             model_versions=self._versions([]),
+            cropped=cropped,
             total_latency_ms=total_ms,
             psnr_vs_input=100.0,
             scale_factor=1.0,

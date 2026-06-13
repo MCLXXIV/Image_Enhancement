@@ -34,6 +34,14 @@ def test_force_without_available_stages_is_skipped(neutral_image: np.ndarray) ->
     np.testing.assert_array_equal(result.image, neutral_image)
 
 
+def test_pipeline_crops_black_bars(
+    letterboxed_image: np.ndarray, neutral_image: np.ndarray
+) -> None:
+    result = Pipeline(stages={}, iqa=None).run(letterboxed_image)
+    assert result.cropped
+    assert result.image.shape == neutral_image.shape
+
+
 def test_pipeline_applies_injected_stage(neutral_image: np.ndarray) -> None:
     result = Pipeline(stages={Stage.SAFMN: _UpscaleStub()}, iqa=None).run(neutral_image)
     assert Stage.SAFMN in result.applied

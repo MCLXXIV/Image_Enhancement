@@ -25,6 +25,17 @@ def test_blurry_image_has_low_sharpness(
     assert blurry.sharpness_laplacian_var < neutral.sharpness_laplacian_var / 2
 
 
+def test_document_image_is_near_white_low_midtone(
+    document_image: np.ndarray, neutral_image: np.ndarray
+) -> None:
+    doc = compute_metrics(document_image)
+    photo = compute_metrics(neutral_image)
+    assert doc.near_white_ratio > 0.6
+    assert doc.midtone_ratio < 0.12
+    assert doc.saturation_mean < 0.05
+    assert photo.near_white_ratio < 0.6
+
+
 def test_noise_sigma_rises_with_added_noise() -> None:
     rng = np.random.default_rng(seed=1)
     flat = np.full((128, 128), 128, dtype=np.uint8)

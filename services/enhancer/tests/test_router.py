@@ -62,6 +62,14 @@ def test_large_blurry_without_restore_does_not_upscale(blurry_image: np.ndarray)
     assert Stage.SAFMN not in decision.stages
 
 
+def test_document_suppresses_tone_keeps_upscale(document_image: np.ndarray) -> None:
+    decision = route(compute_metrics(document_image), 256, 256, ALL_STAGES)
+    assert Tag.DOCUMENT in decision.tags
+    assert Stage.EXPOSURE not in decision.stages  # IAT не затемняет чертёж
+    assert Stage.LOW_LIGHT not in decision.stages
+    assert Stage.SAFMN in decision.stages  # апскейл документу разрешён
+
+
 def test_large_neutral_image_skipped(neutral_image: np.ndarray) -> None:
     big = cv2.resize(neutral_image, (1400, 1400), interpolation=cv2.INTER_NEAREST)
     decision = route(compute_metrics(big), 1400, 1400, ALL_STAGES)

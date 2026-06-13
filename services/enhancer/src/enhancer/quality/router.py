@@ -17,6 +17,7 @@ class Tag(StrEnum):
     COLOR_CAST = "color_cast"
     BLURRY = "blurry"
     LOW_RES = "low_res"
+    DOCUMENT = "document"
 
 
 class Stage(StrEnum):
@@ -40,6 +41,12 @@ UNDEREXPOSED_LOW = 0.20
 OVEREXPOSED_HIGH = 0.10
 CHANNEL_IMBALANCE_HIGH = 0.12
 
+# Документ/чертёж (план квартиры): белый фон + тонкие линии, почти grayscale, без средних тонов.
+# Тон таким не правим (IAT/Retinexformer только испортят рисунок), апскейл/денойз можно.
+DOC_NEAR_WHITE_MIN = 0.6
+DOC_SATURATION_MAX = 0.05
+DOC_MIDTONE_MAX = 0.12
+
 
 def route(
     m: QualityMetrics,
@@ -55,6 +62,11 @@ def route(
     is_dark = m.brightness_mean < BRIGHTNESS_LOW or m.underexposed_ratio > UNDEREXPOSED_LOW
     is_low_contrast = m.contrast_std < CONTRAST_LOW
     is_overexposed = m.brightness_mean > BRIGHTNESS_HIGH or m.overexposed_ratio > OVEREXPOSED_HIGH
+    is_document = (
+        m.near_white_ratio > DOC_NEAR_WHITE_MIN
+        and m.saturation_mean < DOC_SATURATION_MAX
+        and m.midtone_ratio < DOC_MIDTONE_MAX
+    )
 
     if is_dark:
         tags.append(Tag.LOW_LIGHT)
@@ -64,10 +76,14 @@ def route(
         tags.append(Tag.OVEREXPOSED)
     if m.channel_imbalance > CHANNEL_IMBALANCE_HIGH:
         tags.append(Tag.COLOR_CAST)
+    if is_document:
+        tags.append(Tag.DOCUMENT)
 
     is_washed_out = m.brightness_mean > BRIGHTNESS_HIGH
     needs_tone = (is_dark or is_low_contrast) and not is_washed_out
-    if is_washed_out and Stage.EXPOSURE in available:
+    if is_document:
+        pass  # документу тон не правим, апскейл/денойз ниже остаются доступны
+    elif is_washed_out and Stage.EXPOSURE in available:
         stages.append(Stage.EXPOSURE)
     elif needs_tone and Stage.LOW_LIGHT in available:
         stages.append(Stage.LOW_LIGHT)

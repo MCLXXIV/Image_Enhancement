@@ -47,6 +47,7 @@ def build_headers(result: EnhanceResult) -> dict[str, str]:
         "X-Enhance-Applied": ",".join(s.value for s in result.applied) or "none",
         "X-Enhance-Skipped": "true" if result.skipped else "false",
         "X-Enhance-Fallback": "true" if result.fallback else "false",
+        "X-Enhance-Cropped": "true" if result.cropped else "false",
         "X-Enhance-Latency-Ms": f"{result.total_latency_ms:.1f}",
         "X-Enhance-Psnr-Vs-Input": f"{result.psnr_vs_input:.2f}",
         "X-Enhance-Scale-Factor": f"{result.scale_factor:.2f}",
