@@ -59,11 +59,23 @@ def test_screenshot_is_cropped_then_reclassified(
     letterboxed_image: np.ndarray, neutral_image: np.ndarray
 ) -> None:
     # Классификатор: сначала screenshot, после среза полос кадр становится обычным фото.
+    # photo_type в результате остаётся screenshot (это что увидели на входе, идёт в метрику
+    # и заголовок), переклассификация в real_estate влияет только на роутинг.
     clf = _ClassifierStub(PhotoType.SCREENSHOT, PhotoType.REAL_ESTATE)
     result = Pipeline(stages={}, iqa=None, classifier=clf).run(letterboxed_image)
     assert result.cropped
-    assert result.photo_type == PhotoType.REAL_ESTATE
+    assert result.photo_type == PhotoType.SCREENSHOT
     assert result.image.shape == neutral_image.shape
+
+
+def test_screenshot_routes_as_real_estate_after_crop(letterboxed_image: np.ndarray) -> None:
+    # Скриншот после среза трактуется роутером как обычное фото: тон к нему применяется.
+    dark_framed = (letterboxed_image.astype(np.float32) * 0.25).clip(0, 255).astype(np.uint8)
+    clf = _ClassifierStub(PhotoType.SCREENSHOT, PhotoType.REAL_ESTATE)
+    stages = {Stage.LOW_LIGHT: _Identity("low_light")}
+    result = Pipeline(stages=stages, iqa=None, classifier=clf).run(dark_framed)
+    assert result.photo_type == PhotoType.SCREENSHOT  # наружу всё ещё screenshot
+    assert Stage.LOW_LIGHT in result.applied  # но роутинг как у real_estate: тон применён
 
 
 def test_non_screenshot_is_not_cropped(letterboxed_image: np.ndarray) -> None:

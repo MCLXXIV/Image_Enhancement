@@ -94,32 +94,31 @@ class Pipeline:
         self.iqa = iqa
         self.classifier = classifier if classifier is not None else build_photo_classifier()
 
-    def _classify_and_crop(self, image_bgr: np.ndarray) -> tuple[PhotoType, bool, np.ndarray]:
-        """Тип фото + срез полос. Скриншот режем по чёрным полосам и переклассифицируем кадр.
-
-        Без классификатора падаем на старое поведение: всегда пытаемся срезать леттербокс,
-        тип остаётся real_estate (полный пайплайн).
-        """
+    def _classify_and_crop(
+        self, image_bgr: np.ndarray
+    ) -> tuple[PhotoType, PhotoType, bool, np.ndarray]:
+        """Возвращает (detected для метрики/заголовка, route_type для роутинга, cropped, image)."""
         if self.classifier is None:
             cropped_bgr = crop_black_bars(image_bgr)
-            return PhotoType.REAL_ESTATE, cropped_bgr.shape != image_bgr.shape, cropped_bgr
+            cropped = cropped_bgr.shape != image_bgr.shape
+            return PhotoType.REAL_ESTATE, PhotoType.REAL_ESTATE, cropped, cropped_bgr
 
-        photo_type = self.classifier.predict(image_bgr)
-        if photo_type != PhotoType.SCREENSHOT:
-            return photo_type, False, image_bgr
+        detected = self.classifier.predict(image_bgr)
+        if detected != PhotoType.SCREENSHOT:
+            return detected, detected, False, image_bgr
 
         cropped_bgr = crop_black_bars(image_bgr)
         cropped = cropped_bgr.shape != image_bgr.shape
-        photo_type = self.classifier.predict(cropped_bgr)
-        if photo_type == PhotoType.SCREENSHOT:
-            photo_type = PhotoType.REAL_ESTATE  # полосы уже срезаны, дальше как обычное фото
-        return photo_type, cropped, cropped_bgr
+        route_type = self.classifier.predict(cropped_bgr)
+        if route_type == PhotoType.SCREENSHOT:
+            route_type = PhotoType.REAL_ESTATE  # полосы уже срезаны, дальше как обычное фото
+        return detected, route_type, cropped, cropped_bgr
 
     def run(self, image_bgr: np.ndarray, params: EnhanceParams | None = None) -> EnhanceResult:
         params = params or EnhanceParams()
         total_t0 = time.perf_counter()
         with enhance_request_duration_seconds.labels(stage="classify").time():
-            photo_type, cropped, image_bgr = self._classify_and_crop(image_bgr)
+            photo_type, route_type, cropped, image_bgr = self._classify_and_crop(image_bgr)
         enhance_photo_type_total.labels(type=photo_type.value).inc()
         available = set(self.stages.keys())
         h, w = image_bgr.shape[:2]
@@ -129,7 +128,11 @@ class Pipeline:
 
         with enhance_request_duration_seconds.labels(stage="route").time():
             decision = route(
-                metrics_before, width=w, height=h, available_stages=available, photo_type=photo_type
+                metrics_before,
+                width=w,
+                height=h,
+                available_stages=available,
+                photo_type=route_type,
             )
 
         force = bool(params.force)
