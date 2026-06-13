@@ -74,3 +74,10 @@ make weights
 make up-gpu
 make logs-gpu
 ```
+
+
+## HTML
+
+```bash
+services/enhancer/.venv/bin/python scripts/eval_endpoint.py --html data/eval_set/report
+```
