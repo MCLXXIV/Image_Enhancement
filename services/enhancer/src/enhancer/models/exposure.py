@@ -1,4 +1,4 @@
-"""Exposure-стадия: IAT правит пере- и недосвет. Размер и разрешение не меняет."""
+"""Exposure-стадия: CoTF (CoNet, 3D-LUT) правит дневной пере-/недосвет, размер не меняет."""
 
 from __future__ import annotations
 
@@ -7,12 +7,15 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from enhancer.models._iat_arch import IAT
+from enhancer.models._cotf_arch import CoNet
 from enhancer.models.base import StageParams
+
+N_VERTICES_3D = 17
+INPUT_RESOLUTION = 256
 
 
 class ExposureEnhancer:
-    """IAT (exposure) под Enhancer Protocol. Лёгкая модель под засветы/пересвет."""
+    """CoTF (exposure) под Enhancer Protocol. 3D-LUT тоновая коррекция, домен MSEC."""
 
     name = "exposure"
 
@@ -20,16 +23,14 @@ class ExposureEnhancer:
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
         self._device = torch.device(device)
-        self._model = IAT(type="exp")
-        checkpoint = torch.load(weights_path, map_location="cpu", weights_only=False)
-        state_dict = (
-            checkpoint.get("params", checkpoint) if isinstance(checkpoint, dict) else checkpoint
-        )
+        self._model = CoNet(n_vertices_3d=N_VERTICES_3D, input_resolution=INPUT_RESOLUTION)
+        checkpoint = torch.load(weights_path, map_location="cpu", weights_only=True)
+        state_dict = checkpoint.get("params_ema", checkpoint.get("params", checkpoint))
         self._model.load_state_dict(state_dict, strict=True)
         self._model.to(self._device).eval()
         for p in self._model.parameters():
             p.requires_grad_(False)
-        self.version = "iat@exposure"
+        self.version = "cotf@msec"
 
     def _to_tensor(self, image_bgr: np.ndarray) -> torch.Tensor:
         img = image_bgr.astype(np.float32) / 255.0
@@ -43,6 +44,5 @@ class ExposureEnhancer:
 
     @torch.inference_mode()
     def apply(self, image_bgr: np.ndarray, params: StageParams) -> np.ndarray:
-        tensor = self._to_tensor(image_bgr)
-        _, _, enhanced = self._model(tensor)
+        enhanced = self._model(self._to_tensor(image_bgr))
         return self._from_tensor(enhanced)

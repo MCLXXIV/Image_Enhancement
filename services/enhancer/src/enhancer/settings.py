@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     lowlight_noise_hi: float = Field(default=8.0, alias="LOWLIGHT_NOISE_HI")
     lowlight_strength_min: float = Field(default=0.5, alias="LOWLIGHT_STRENGTH_MIN")
 
-    # IAT (exposure).
+    # CoTF (exposure).
     exposure_weights_path: str | None = Field(default=None, alias="EXPOSURE_WEIGHTS_PATH")
     exposure_device: str | None = Field(default=None, alias="EXPOSURE_DEVICE")
 

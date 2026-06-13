@@ -45,7 +45,7 @@ target-version = "py311"
 extend-exclude = [
   "src/enhancer/models/_scunet_arch.py",
   "src/enhancer/models/_retinexformer_arch.py",
-  "src/enhancer/models/_iat_arch.py",
+  "src/enhancer/models/_cotf_arch.py",
 ]
 
 [tool.ruff.lint]
@@ -66,7 +66,7 @@ ignore_missing_imports = true
 module = [
   "enhancer.models._scunet_arch",
   "enhancer.models._retinexformer_arch",
-  "enhancer.models._iat_arch",
+  "enhancer.models._cotf_arch",
 ]
 ignore_errors = true
 

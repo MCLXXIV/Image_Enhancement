@@ -28,7 +28,7 @@ flowchart TD
     ASSESS --> ROUTE{" Роутер:<br/>метрики + тип кадра "}:::clf
 
     ROUTE -->|" хорошее фото "| SKIP([" Оригинал без изменений "]):::io
-    ROUTE -->|" real_estate "| TONE[" Тон:<br/>Retinexformer / IAT "]:::model
+    ROUTE -->|" real_estate "| TONE[" Тон:<br/>Retinexformer / CoTF "]:::model
     ROUTE -->|" floor_plan "| DET
     TONE --> DET[" Детали:<br/>SCUNet / Real-SAFMN++ "]:::model
 

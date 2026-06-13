@@ -82,7 +82,7 @@ def _try_build_lowlight() -> Enhancer | None:
 
 
 def _try_build_exposure() -> Enhancer | None:
-    """IAT (exposure: пере-/недосвет). None если веса не заданы/отсутствуют."""
+    """CoTF (exposure: дневной пере-/недосвет). None если веса не заданы/отсутствуют."""
     if not settings.exposure_weights_path:
         log.info("exposure.not_configured", hint="set EXPOSURE_WEIGHTS_PATH to enable exposure")
         return None

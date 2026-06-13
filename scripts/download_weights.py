@@ -1,4 +1,4 @@
-"""Скачивает веса ML-моделей пайплайна (SAFMN / Retinexformer / IAT / SCUNet) в data/weights/."""
+"""Скачивает веса ML-моделей пайплайна (SAFMN / Retinexformer / CoTF / SCUNet) в data/weights/."""
 
 from __future__ import annotations
 
@@ -28,8 +28,8 @@ WEIGHTS: dict[str, dict[str, str]] = {
     },
     "exposure": {
         "kind": "url",
-        "filename": "iat_exposure.pth",
-        "src": "https://raw.githubusercontent.com/cuiziteng/Illumination-Adaptive-Transformer/main/IAT_enhance/best_Epoch_exposure.pth",
+        "filename": "cotf_msec.pth",
+        "src": "https://raw.githubusercontent.com/HUST-IAL/CoTF/master/experiments/msec_net.pth",
         "env": "EXPOSURE_WEIGHTS_PATH",
     },
     "restore": {
