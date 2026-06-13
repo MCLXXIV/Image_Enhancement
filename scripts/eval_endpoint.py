@@ -1,27 +1,3 @@
-"""Оценка автоулучшения на data/eval_set через POST /enhance.
-
-Два независимых блока оценки, каждый рисуется отдельной вкладкой в HTML-отчёте.
-
-1. Восстановление (controlled degradation) на хороших фото (группа hr_donor).
-   Берём чистый HR-оригинал и намеренно портим его известным способом, затем
-   восстанавливаем строго одной моделью (force + only, в обход роутера) и считаем
-   full-reference метрики (PSNR/SSIM/LPIPS) восстановленного против оригинала.
-   Для контекста те же метрики считаются для испорченного-без-восстановления, так
-   видно, насколько модель отыграла деградацию. Сценарии и их модели:
-     - downscale   -> safmn      (ужали, апскейлим назад)
-     - darken      -> low_light  (затемнили, осветляем)
-     - overexpose  -> exposure   (засветили, чиним пересвет)
-     - noise       -> restore    (зашумили, чистим)
-
-2. Реальные плохие фото (группы lr и corner_case) без эталона. Прогоняем как есть
-   через полный авто-пайплайн (роутер сам выбирает стадии) и берём no-reference IQA
-   (BRISQUE/NIQE) before/after из заголовков ответа.
-
-Скрипт самодостаточный (urllib + numpy + opencv). LPIPS опционален: считается, если
-доступен pyiqa, иначе колонка пустая. Запускать интерпретатором с numpy и opencv,
-например services/enhancer/.venv/bin/python.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -83,8 +59,6 @@ class RowResult:
     assets: dict[str, str] = field(default_factory=dict)
 
 
-# --------------------------------------------------------------------------- IO
-
 def build_multipart(image_bytes: bytes, filename: str, params: dict | None) -> tuple[bytes, str]:
     """Сборка multipart/form-data вручную, без requests."""
     boundary = f"----eval-{uuid.uuid4().hex}"
@@ -128,15 +102,14 @@ def post_enhance(
     try:
         with urlrequest.urlopen(req, timeout=timeout) as resp:  # noqa: S310
             data = resp.read()
-            headers = dict(resp.headers.items())
+            # Starlette отдаёт кастомные заголовки в нижнем регистре, нормализуем ключи.
+            headers = {k.lower(): v for k, v in resp.headers.items()}
             return resp.status, data, headers, (time.perf_counter() - t0) * 1000
     except HTTPError as e:
         return e.code, b"", {}, (time.perf_counter() - t0) * 1000
     except (URLError, TimeoutError) as e:
         return 0, b"", {"_err": type(e).__name__}, (time.perf_counter() - t0) * 1000
 
-
-# -------------------------------------------------------------- метрики (FR)
 
 def _to_gray_f32(img_bgr: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY).astype(np.float32)
@@ -202,8 +175,6 @@ class LpipsScorer:
         with t.no_grad():
             return float(self._metric(prep(a_bgr), prep(b_bgr)).item())
 
-
-# -------------------------------------------------------------- деградации
 
 def _crop_to_multiple(img: np.ndarray, k: int) -> np.ndarray:
     h, w = img.shape[:2]
@@ -277,10 +248,10 @@ def eval_restore(
         row.error = headers.get("_err", f"http-{status}")
         return
 
-    row.applied = headers.get("X-Enhance-Applied", "")
-    row.skipped = headers.get("X-Enhance-Skipped", "")
-    row.fallback = headers.get("X-Enhance-Fallback", "")
-    row.scale_factor = _safe_float(headers.get("X-Enhance-Scale-Factor"))
+    row.applied = headers.get("x-enhance-applied", "")
+    row.skipped = headers.get("x-enhance-skipped", "")
+    row.fallback = headers.get("x-enhance-fallback", "")
+    row.scale_factor = _safe_float(headers.get("x-enhance-scale-factor"))
 
     out = cv2.imdecode(np.frombuffer(body, np.uint8), cv2.IMREAD_COLOR)
     if out is None:
@@ -325,13 +296,13 @@ def eval_nr(
         row.error = headers.get("_err", f"http-{status}")
         return
 
-    row.applied = headers.get("X-Enhance-Applied", "")
-    row.skipped = headers.get("X-Enhance-Skipped", "")
-    row.fallback = headers.get("X-Enhance-Fallback", "")
-    row.scale_factor = _safe_float(headers.get("X-Enhance-Scale-Factor"))
+    row.applied = headers.get("x-enhance-applied", "")
+    row.skipped = headers.get("x-enhance-skipped", "")
+    row.fallback = headers.get("x-enhance-fallback", "")
+    row.scale_factor = _safe_float(headers.get("x-enhance-scale-factor"))
 
-    iqa_before = _safe_json(headers.get("X-Enhance-Iqa-Before"))
-    iqa_after = _safe_json(headers.get("X-Enhance-Iqa-After"))
+    iqa_before = _safe_json(headers.get("x-enhance-iqa-before"))
+    iqa_after = _safe_json(headers.get("x-enhance-iqa-after"))
     row.brisque_before = _safe_float(iqa_before.get("brisque"))
     row.brisque_after = _safe_float(iqa_after.get("brisque"))
     row.niqe_before = _safe_float(iqa_before.get("niqe"))
@@ -363,8 +334,6 @@ def _safe_json(value: str | None) -> dict:
         return {}
 
 
-# ------------------------------------------------------------------- превью
-
 class ReportSink:
     """Сохраняет уменьшенные превью для HTML-отчёта в <out_dir>/assets."""
 
@@ -387,8 +356,6 @@ class ReportSink:
         cv2.imwrite(str(dst), img_bgr, [cv2.IMWRITE_JPEG_QUALITY, self.jpeg_q])
         return str(rel)
 
-
-# --------------------------------------------------------------------- сводка
 
 def _mean(values: list[float]) -> float:
     clean = [v for v in values if v == v]  # отбрасываем NaN
@@ -507,8 +474,6 @@ def write_csv(rows: list[RowResult], path: Path) -> None:
                 }
             )
 
-
-# ----------------------------------------------------------------- HTML-отчёт
 
 def _fmt(value: float, digits: int = 2) -> str:
     return "n/a" if value != value else f"{value:.{digits}f}"
@@ -739,8 +704,6 @@ document.querySelectorAll('.q').forEach(inp=>inp.oninput=e=>{{
 </body></html>
 """
 
-
-# ------------------------------------------------------------------------ main
 
 def _iter_group_images(group_dir: Path) -> list[Path]:
     return sorted(p for p in group_dir.iterdir() if p.suffix.lower() in IMAGE_SUFFIXES)

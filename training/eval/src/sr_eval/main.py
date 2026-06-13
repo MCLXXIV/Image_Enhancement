@@ -56,7 +56,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--tol",
         type=int,
         default=8,
-        help="Допустимое расхождение размеров (px) для центр-кропа; больше → ошибка",
+        help="Допустимое расхождение размеров (px) для центр-кропа; больше дает ошибку",
     )
     parser.add_argument(
         "--y-channel",

@@ -1,10 +1,4 @@
-"""Build a static swipe-review HTML for selecting good and bad images.
-
-The script scans a local image directory, computes lightweight no-reference
-quality metrics, ranks images, and writes a self-contained HTML reviewer. The
-HTML references image files by relative path, so it stays small even for large
-datasets.
-"""
+"""Сканирует папку с фото, считает no-ref метрики и строит self-contained HTML для свайп-ревью."""
 
 from __future__ import annotations
 

@@ -91,10 +91,7 @@ def exposure_fusion(images: list[np.ndarray], weights: list[np.ndarray], levels:
 
 
 def fuse_exposures(original_bgr: np.ndarray, enhanced_bgr: np.ndarray) -> np.ndarray:
-    """Тон-компрессия HDR-сцены: вернуть оригинальные света, сохранив вытянутые осветлением тени.
-
-    Третья экспозиция (затемнённый выход) поджимает раздутые ореолы вокруг источников света.
-    """
+    """Тон-компрессия HDR-сцены: вернуть света оригинала, сохранив вытянутые осветлением тени."""
     orig = original_bgr.astype(np.float32) / 255.0
     enh = enhanced_bgr.astype(np.float32) / 255.0
     rolled = np.power(enh, HIGHLIGHT_ROLLOFF_GAMMA).astype(np.float32)

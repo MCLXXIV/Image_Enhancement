@@ -27,7 +27,7 @@ if ! command -v docker >/dev/null 2>&1; then
   $SUDO apt-get update -y
   $SUDO apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   $SUDO usermod -aG docker "$USER" || true
-  echo "  → перелогинься, чтобы группа docker применилась"
+  echo "  перелогинься, чтобы группа docker применилась"
 else
   echo "  docker уже установлен: $(docker --version)"
 fi
@@ -49,7 +49,7 @@ if command -v nvidia-smi >/dev/null 2>&1; then
     echo "  nvidia-container-toolkit уже установлен"
   fi
 else
-  echo "  nvidia-smi не найден — пропускаем GPU toolkit (CPU-only режим)"
+  echo "  nvidia-smi не найден, пропускаем GPU toolkit (CPU-only режим)"
 fi
 
 echo "[4/4] Готово. Запуск стека:  infra/deploy/up.sh"

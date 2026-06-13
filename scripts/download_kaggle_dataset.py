@@ -1,4 +1,4 @@
-"""Download the Kaggle photo dataset and prepare a flat image directory."""
+"""Скачивает Kaggle-датасет фото и раскладывает плоской папкой в data/photos/."""
 
 from __future__ import annotations
 

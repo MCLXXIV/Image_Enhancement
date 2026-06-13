@@ -1,11 +1,4 @@
-"""Скачать веса трёх ML-моделей пайплайна в data/weights/.
-
-Модели:
-  - Real-SAFMN++ (SR + restoration): SAFMN_L_Real_LSDIR_x2.pth и _x4.pth (HuggingFace, dim=128)
-  - Retinexformer (low-light): LOL_v2_real.pth (Google Drive, gdown)
-  - IAT (exposure): iat_exposure.pth (GitHub, ~417 КБ)
-  - SCUNet (restoration scale=1): scunet_color_real_psnr.pth (config=4x7, dim=64)
-"""
+"""Скачивает веса ML-моделей пайплайна (SAFMN / Retinexformer / IAT / SCUNet) в data/weights/."""
 
 from __future__ import annotations
 

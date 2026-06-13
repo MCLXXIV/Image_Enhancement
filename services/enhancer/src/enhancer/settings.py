@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     mlflow_tracking_uri: str = Field(default="http://mlflow:5000", alias="MLFLOW_TRACKING_URI")
     s3_endpoint_url: str = Field(default="http://minio:9000", alias="S3_ENDPOINT_URL")
 
-    # --- Real-SAFMN++ (SR + restoration на мелких/низкоразрешённых фото) ---
+    # Real-SAFMN++ (SR + restoration на мелких/низкоразрешённых фото).
     safmn_x2_weights_path: str | None = Field(default=None, alias="SAFMN_X2_WEIGHTS_PATH")
     safmn_x4_weights_path: str | None = Field(default=None, alias="SAFMN_X4_WEIGHTS_PATH")
     safmn_device: str | None = Field(default=None, alias="SAFMN_DEVICE")
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # Доля SR-выхода в результате: 1.0 только модель, <1.0 подмешивает бикубик (меньше пластика).
     safmn_strength: float = Field(default=0.8, alias="SAFMN_STRENGTH")
 
-    # --- Retinexformer (low-light: экспозиция / шум / цвет) ---
+    # Retinexformer (low-light: экспозиция / шум / цвет).
     lowlight_weights_path: str | None = Field(default=None, alias="LOWLIGHT_WEIGHTS_PATH")
     lowlight_device: str | None = Field(default=None, alias="LOWLIGHT_DEVICE")
     # Конфиг сети под чекпоинт (LOL_v2_real: n_feat=40, stage=1, num_blocks=1,2,2).
@@ -39,11 +39,11 @@ class Settings(BaseSettings):
     lowlight_noise_hi: float = Field(default=8.0, alias="LOWLIGHT_NOISE_HI")
     lowlight_strength_min: float = Field(default=0.5, alias="LOWLIGHT_STRENGTH_MIN")
 
-    # --- IAT (exposure) ---
+    # IAT (exposure).
     exposure_weights_path: str | None = Field(default=None, alias="EXPOSURE_WEIGHTS_PATH")
     exposure_device: str | None = Field(default=None, alias="EXPOSURE_DEVICE")
 
-    # --- SCUNet (restoration scale=1: шум / JPEG / лёгкий блюр на больших фото) ---
+    # SCUNet (restoration scale=1: шум / JPEG / лёгкий блюр на больших фото).
     restore_weights_path: str | None = Field(default=None, alias="RESTORE_WEIGHTS_PATH")
     restore_device: str | None = Field(default=None, alias="RESTORE_DEVICE")
     restore_tile: int = Field(default=256, alias="RESTORE_TILE")
@@ -51,12 +51,12 @@ class Settings(BaseSettings):
     # Конфиг блоков SCUNet под real-чекпоинт scunet_color_real_psnr.pth (CSV).
     restore_config: str = Field(default="4,4,4,4,4,4,4", alias="RESTORE_CONFIG")
 
-    # --- Роутер: пороги размеров ---
+    # Роутер: пороги размеров.
     low_res_max_side: int = Field(default=1280, alias="LOW_RES_MAX_SIDE")
     sr_input_max_side: int = Field(default=2048, alias="SR_INPUT_MAX_SIDE")
     sr_target_long_side: int = Field(default=1920, alias="SR_TARGET_LONG_SIDE")
 
-    # --- IQA-verify (really improved?) ---
+    # IQA-verify: проверка, что результат действительно лучше.
     iqa_device: str | None = Field(default=None, alias="IQA_DEVICE")
     iqa_gate_enabled: bool = Field(default=True, alias="IQA_GATE_ENABLED")
 

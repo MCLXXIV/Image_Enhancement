@@ -38,7 +38,7 @@ def neutral_image() -> np.ndarray:
 
 @pytest.fixture
 def dark_image(neutral_image: np.ndarray) -> np.ndarray:
-    """Тёмная версия neutral_image, gamma-стадия должна её осветлить."""
+    """Тёмная версия neutral_image, стадия low_light должна её осветлить."""
     return (neutral_image.astype(np.float32) * 0.25).clip(0, 255).astype(np.uint8)
 
 

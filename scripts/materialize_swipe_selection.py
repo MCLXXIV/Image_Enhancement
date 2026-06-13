@@ -1,8 +1,4 @@
-"""Materialize images selected in quality_swipe_selected.json.
-
-Use this after exporting JSON from data/review/quality_swipe.html. The default
-mode creates symlinks, which is fast and does not duplicate image data.
-"""
+"""Отбирает фото из JSON-экспорта свайп-ревью в отдельную папку (по умолчанию через симлинки)."""
 
 from __future__ import annotations
 

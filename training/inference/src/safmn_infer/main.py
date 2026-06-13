@@ -36,7 +36,7 @@ def _list_inputs(directory: Path) -> list[Path]:
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="safmn-infer",
-        description="Real_SAFMN++ инференс: папка входов → папка апскейлов",
+        description="Real_SAFMN++ инференс: из папки входов в папку апскейлов",
     )
     parser.add_argument("--input", type=Path, required=True, help="Папка с входными изображениями")
     parser.add_argument("--output", type=Path, required=True, help="Куда писать апскейлы (PNG)")

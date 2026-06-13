@@ -1,4 +1,4 @@
-"""HR→LR пары на лету; HR кропается из реальных фото, LR строится через degradation pipeline."""
+"""HR/LR пары на лету; HR кропается из реальных фото, LR строится через degradation pipeline."""
 
 from __future__ import annotations
 
